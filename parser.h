@@ -16,6 +16,8 @@ namespace parser {
         Lexer lxr_;
         IAST* root_ = nullptr;
 
+        IAST* assign_parse ();
+        IAST* addsub_parse ();
         IAST* muldiv_parse ();
         IAST* vlvr_parse ();
         IAST* val_parse ();
