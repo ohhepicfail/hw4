@@ -62,6 +62,8 @@ namespace lexem {
 
 
     void Lexer::set_op_lexem () {
+
+        using namespace op;
         auto c = text_[cur_pos_];
         Operator op = NAP;
 
@@ -137,8 +139,8 @@ int main () {
             printf ("val\t%lf\n", tmp->get_val ()); 
         if (tmp->get_type () == OP) {
             auto t = tmp->get_op ();
-            printf ("op \t%s\n", operator_name (t));
-            if (t == END)
+            printf ("op \t%s\n", op::string_eq (t));
+            if (t == op::END)
                 break;   
         }
         delete tmp;

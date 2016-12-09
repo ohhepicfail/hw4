@@ -25,10 +25,10 @@ namespace lexem {
         virtual ~ILexem () {}
         virtual ILexem* clone () = 0;
 
-        virtual double      get_val () const = 0;
-        virtual const char* get_var () const = 0;
-        virtual Operator    get_op  () const = 0;
-        Lexem_type          get_type () const { return cur_type_; }
+        virtual double       get_val () const = 0;
+        virtual const char*  get_var () const = 0;
+        virtual op::Operator get_op  () const = 0;
+        Lexem_type           get_type () const { return cur_type_; }
     };
 
 
@@ -41,9 +41,9 @@ namespace lexem {
         Val_lexem (const Val_lexem& that) : ILexem (VAL), val_ (that.val_) {}
         ILexem* clone () override { return new Val_lexem (*this); }
 
-        double      get_val () const override { return val_; }
-        const char* get_var () const override { assert (0); }
-        Operator    get_op ()  const override { assert (0); }
+        double       get_val () const override { return val_; }
+        const char*  get_var () const override { assert (0); }
+        op::Operator get_op  () const override { assert (0); }
     };
 
 
@@ -68,25 +68,25 @@ namespace lexem {
         }
         ILexem* clone () override { return new Var_lexem (*this); }
 
-        double      get_val () const override { assert (0); }
-        const char* get_var () const override { return var_; }
-        Operator    get_op ()  const override { assert (0); }
+        double       get_val () const override { assert (0); }
+        const char*  get_var () const override { return var_; }
+        op::Operator get_op  () const override { assert (0); }
         
     };
 
 
     class Op_lexem final: public ILexem {
     private:
-        Operator op_ = NAP;
+        op::Operator op_ = op::NAP;
     public:
-        Op_lexem (Operator op) : ILexem (OP), op_ (op) {}
+        Op_lexem (op::Operator op) : ILexem (OP), op_ (op) {}
         ~Op_lexem () override {}
         Op_lexem (const Op_lexem& that) : ILexem (OP), op_ (that.op_) {}
         ILexem* clone () override { return new Op_lexem (*this); }
 
-        double      get_val () const override { assert (0); }
-        const char* get_var () const override { assert (0); }
-        Operator    get_op  () const override { return op_; }
+        double       get_val () const override { assert (0); }
+        const char*  get_var () const override { assert (0); }
+        op::Operator get_op  () const override { return op_; }
     };
 
 }
