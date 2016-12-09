@@ -9,6 +9,13 @@ namespace parser {
         ILexem* l = lxr_.cur_lexem ();
         while (l->get_type () == OP && l->get_op () == op::EOL) {
             lxr_.next_lexem ();
+            delete l;
+            l = lxr_.cur_lexem ();
+            if (l->get_type () == OP && l->get_op () == op::END)
+                break;
+            if (l->get_type () == OP && l->get_op () == op::EOL)
+                continue;
+
             IAST* right = assign_parse ();
 
             root_ = new Op_AST (op::CODE, root_, right);
@@ -40,14 +47,14 @@ namespace parser {
 
     IAST* Parser::addsub_parse () {
         using namespace op;
-        IAST* ast = muldiv_parse ();
+        IAST* ast = brt_md_parse ();
 
         ILexem* lex = lxr_.cur_lexem ();
         while (lex->get_type () == OP && (lex->get_op () == ADD || lex->get_op () == SUB)) {
             Operator oper = lex->get_op ();
             lxr_.next_lexem ();
 
-            IAST* right = muldiv_parse ();
+            IAST* right = brt_md_parse ();
             ast = new Op_AST (oper, ast, right);
 
             delete lex;
@@ -59,16 +66,36 @@ namespace parser {
     }
 
 
+    IAST* Parser::brt_md_parse () {
+        ILexem* lex = lxr_.cur_lexem ();
+        IAST* ast = nullptr;
+        if (lex->get_type () == OP && lex->get_op () == op::OBRT) {
+            delete lex;
+            lxr_.next_lexem ();
+            ast = addsub_parse ();
+
+            lex = lxr_.cur_lexem ();
+            assert (lex->get_type () == OP && lex->get_op () == op::CBRT);
+            lxr_.next_lexem ();
+        }
+        else
+            ast = muldiv_parse ();
+
+        delete lex;
+        return ast;
+    }
+
+
     IAST* Parser::muldiv_parse () {
         using namespace op;
-        IAST* ast = vlvr_parse ();
+        IAST* ast = brt_vlvr_parse ();
 
         ILexem* lex = lxr_.cur_lexem ();
         while (lex->get_type () == OP && (lex->get_op () == MUL || lex->get_op () == DIV)) {
             Operator oper = lex->get_op ();
             lxr_.next_lexem ();
 
-            IAST* right = vlvr_parse ();
+            IAST* right = brt_vlvr_parse ();
             ast = new Op_AST (oper, ast, right);
 
             delete lex;
@@ -76,6 +103,26 @@ namespace parser {
         }
         delete lex;
 
+        return ast;
+    }
+
+
+    IAST* Parser::brt_vlvr_parse () {
+        ILexem* lex = lxr_.cur_lexem ();
+        IAST* ast = nullptr;
+        if (lex->get_type () == OP && lex->get_op () == op::OBRT) {
+            delete lex;
+            lxr_.next_lexem ();
+            ast = addsub_parse ();
+
+            lex = lxr_.cur_lexem ();
+            assert (lex->get_type () == OP && lex->get_op () == op::CBRT); 
+            lxr_.next_lexem ();
+        }
+        else
+            ast = vlvr_parse ();
+
+        delete lex;
         return ast;
     }
 
