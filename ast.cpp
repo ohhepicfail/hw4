@@ -94,20 +94,3 @@ namespace ast {
 
 
 }
-
-
-
-
-int main () {
-
-    using namespace ast;
-    IAST* ast = new Val_AST (.4);
-    IAST* ast2 = new Var_AST ("hello");
-    IAST* ast3 = new Op_AST (ADD, ast, ast2);
-    IAST* ast4 = new Var_AST ("bum");
-    IAST* ast5 = new Op_AST (ASSIGN, ast4, ast3);
-    ast5->print ("hello.dot");
-    delete ast3;
-
-    return 0;
-}

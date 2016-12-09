@@ -41,11 +41,11 @@ namespace ast {
 
     class Op_AST final: public IAST {
     private:
-        Operator op_ = NAP;
-        IAST* left_ = nullptr;
+        op::Operator op_ = op::NAP;
+        IAST* left_  = nullptr;
         IAST* right_ = nullptr;
     public:
-        Op_AST (Operator op, IAST* left, IAST* right) : op_ (op), left_ (left), right_ (right) {}
+        Op_AST (op::Operator op, IAST* left, IAST* right) : op_ (op), left_ (left), right_ (right) {}
         ~Op_AST () override { delete left_; delete right_; }
         void dprint (FILE* f) const override;
     };
