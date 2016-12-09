@@ -4,8 +4,11 @@
 
 #include <cstring>
 #include <algorithm>
+#include <cassert>
 #include "operator.h"
+#include "type.h"
 
+using namespace type;
 
 namespace ast {
 
@@ -14,10 +17,14 @@ namespace ast {
     public:
         IAST () {}
         virtual ~IAST () {};
+        virtual IAST* clone () = 0;
 
         void print (const char* filename);
         virtual void dprint (FILE* f) const = 0;
-        virtual IAST* clone () = 0;
+        virtual double       get_val  () const = 0;
+        virtual const char*  get_var  () const = 0;
+        virtual op::Operator get_op   () const = 0;
+        virtual Type         get_type () const { return NAT; }
     };
 
 
@@ -31,6 +38,10 @@ namespace ast {
         IAST* clone () override { return new Val_AST (*this); }
 
         void dprint (FILE* f) const override;
+        double       get_val  () const override { return val_; }
+        const char*  get_var  () const override { assert (0); }
+        op::Operator get_op   () const override { assert (0); }
+        Type         get_type () const override { return VAL; }
     };
 
 
@@ -44,6 +55,10 @@ namespace ast {
         IAST* clone () override { return new Var_AST (*this); } 
 
         void dprint (FILE* f) const override;
+        double       get_val  () const override { assert (0); }
+        const char*  get_var  () const override { return var_; }
+        op::Operator get_op   () const override { assert (0); }
+        Type         get_type () const override { return VAR; }
     };
 
 
@@ -64,6 +79,10 @@ namespace ast {
         IAST* clone () override { return new Op_AST (*this); }
 
         void dprint (FILE* f) const override;
+        double       get_val  () const override { assert (0); }
+        const char*  get_var  () const override { assert (0); }
+        op::Operator get_op   () const override { return op_; }
+        Type         get_type () const override { return OP; }
     };
 }
 

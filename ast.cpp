@@ -88,7 +88,7 @@ namespace ast {
     void Op_AST::dprint (FILE* f) const {
         assert (f);
 
-        fprintf (f, "\t%lu [label = \"op\\n%d\"]\n", reinterpret_cast<unsigned long> (this), op_);
+        fprintf (f, "\t%lu [label = \"op\\n%s\"]\n", reinterpret_cast<unsigned long> (this), string_eq (op_));
 
         if (left_) {
             fprintf (f, "\t%lu->%lu\n", reinterpret_cast<unsigned long> (this)
