@@ -20,10 +20,10 @@ namespace lexem {
     public:
         Lexer (const char* filename);
         ~Lexer ();
-        // Lexer (const Lexer& that);
-        // Lexer (Lexer&& that);
-        // Lexer& operator= (const Lexer& that);
-        // Lexer& operator= (Lexer&& that);
+        Lexer (const Lexer& that);
+        Lexer (Lexer&& that);
+        Lexer& operator= (const Lexer& that);
+        Lexer& operator= (Lexer&& that);
 
         ILexem* cur_lexem () const;
         ILexem* next_lexem ();

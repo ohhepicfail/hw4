@@ -27,10 +27,62 @@ namespace lexem {
         delete lexem_;
         delete[] text_;
     }
-    // Lexer (const Lexer& that);
-    // Lexer (Lexer&& that);
-    // Lexer& operator= (const Lexer& that);
-    // Lexer& operator= (Lexer&& that);
+
+
+    Lexer::Lexer (const Lexer& that) {
+        if (that.lexem_)
+            lexem_ = that.cur_lexem ();
+        if (that.text_) {
+            text_ = new char[that.tsize_];
+            std::copy (that.text_, that.text_ + that.tsize_, text_);
+            cur_pos_ = that.cur_pos_;
+            tsize_ = that.tsize_;
+        }
+    }
+
+
+    Lexer::Lexer (Lexer&& that) : lexem_ (that.lexem_)
+                                , text_ (that.text_)
+                                , cur_pos_ (that.cur_pos_)
+                                , tsize_ (that.tsize_) 
+    {
+        that.lexem_ = nullptr;
+        that.text_ = nullptr;
+        that.cur_pos_ = 0;
+        that.tsize_ = 0;
+    }
+
+
+    Lexer& Lexer::operator= (const Lexer& that) {
+        if (this != &that) {
+            delete lexem_;
+            delete[] text_;
+            lexem_ = nullptr;
+            text_  = nullptr;
+
+            Lexer tmp (that);
+            *this = std::move (tmp);
+        }
+        return *this;
+    }
+
+
+    Lexer& Lexer::operator= (Lexer&& that) {
+        delete lexem_;
+        delete[] text_;
+        lexem_ = that.lexem_;
+        text_  = that.text_;
+        that.lexem_ = nullptr;
+        that.text_  = nullptr;
+
+        cur_pos_ = that.cur_pos_;
+        tsize_   = that.tsize_;
+        that.cur_pos_ = 0;
+        that.tsize_   = 0;
+
+        return *this;
+    }
+
 
     ILexem* Lexer::cur_lexem () const {
         ILexem* tmp = lexem_->clone ();
@@ -75,6 +127,7 @@ namespace lexem {
             case '='  : op = ASSIGN; break;
             case '\n' : op = EOL;    break;
             case EOF  : op = END;    break;
+            default : break;
         }
 
         cur_pos_++;
@@ -124,29 +177,4 @@ namespace lexem {
     }
 
 
-}
-
-
-int main () {
-    using namespace lexem;
-
-    Lexer lr ("code.txt");
-    ILexem* tmp = lr.cur_lexem ();
-    while (1) {
-        if (tmp->get_type () == VAR)
-            printf ("var\t%s\n", tmp->get_var ());
-        if (tmp->get_type () == VAL)
-            printf ("val\t%lf\n", tmp->get_val ()); 
-        if (tmp->get_type () == OP) {
-            auto t = tmp->get_op ();
-            printf ("op \t%s\n", op::string_eq (t));
-            if (t == op::END)
-                break;   
-        }
-        delete tmp;
-        tmp = lr.next_lexem ();
-    }
-
-    delete tmp;
-    return 0;
 }
