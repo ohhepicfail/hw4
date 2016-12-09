@@ -11,6 +11,8 @@ namespace op {
             case CODE   : return "CODE";    break;
             case EOL    : return "EOL";     break;
             case END    : return "END";     break;
+            case OBRT   : return "OBRT";    break;
+            case CBRT   : return "CBRT";    break;
             case NAP    : return "NAP";     break;
             default     : return "DEFAULT"; break;
         }
