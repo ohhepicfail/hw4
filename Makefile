@@ -7,8 +7,8 @@ all: compile clean
 all_valgrind: compile clean
 	valgrind ./interpreter
 
-compile: ast.cpp lexem.cpp lexer.cpp operator.cpp main.cpp
-	$(CXX) $(CXXFLAGS) ast.cpp lexem.cpp lexer.cpp operator.cpp main.cpp -o interpreter
+compile: ast.cpp lexem.cpp lexer.cpp operator.cpp parser.cpp main.cpp
+	$(CXX) $(CXXFLAGS) ast.cpp lexem.cpp lexer.cpp operator.cpp parser.cpp main.cpp -o interpreter
 
 clean:
 	rm -rf *.o
