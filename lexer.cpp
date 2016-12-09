@@ -126,6 +126,8 @@ namespace lexem {
             case '='  : op = ASSIGN; break;
             case '\n' : op = EOL;    break;
             case '\0' : op = END;    break;
+            case '('  : op = OBRT;   break;
+            case ')'  : op = CBRT;   break;
             default : break;
         }
 
