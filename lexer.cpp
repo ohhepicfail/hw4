@@ -18,7 +18,8 @@ namespace lexem {
 
         fclose (f);
 
-        auto tmp = next_lexem ();
+        next_lexem ();
+        auto tmp = cur_lexem ();
         delete tmp;
     }
 
@@ -91,7 +92,7 @@ namespace lexem {
     }
 
 
-    ILexem* Lexer::next_lexem () {
+    void Lexer::next_lexem () {
         delete lexem_;
 
         skip_spaces ();
@@ -102,8 +103,6 @@ namespace lexem {
             set_val_lexem ();
         else
             set_op_lexem ();
-
-        return cur_lexem ();
     }
 
 
@@ -126,7 +125,7 @@ namespace lexem {
             case '/'  : op = DIV;    break;
             case '='  : op = ASSIGN; break;
             case '\n' : op = EOL;    break;
-            case EOF  : op = END;    break;
+            case '\0' : op = END;    break;
             default : break;
         }
 
@@ -152,6 +151,7 @@ namespace lexem {
         cur_pos_++;
 
         unsigned counter = 10;
+        assert (isdigit (text_[cur_pos_]));
         while (isdigit (text_[cur_pos_])) {
             val += static_cast<double> (text_[cur_pos_++] - '0') / counter;
             counter *= 10;

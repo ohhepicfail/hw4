@@ -26,7 +26,7 @@ namespace lexem {
         Lexer& operator= (Lexer&& that);
 
         ILexem* cur_lexem () const;
-        ILexem* next_lexem ();
+        void next_lexem ();
     };
 
 
