@@ -7,8 +7,9 @@ void test_lexer ();
 
 
 int main () {
-    // test_ast ();
-    test_lexer ();
+    test_ast ();
+
+    // test_lexer ();
 
     return 0;
 }
@@ -16,13 +17,17 @@ int main () {
 
 void test_ast () {
     using namespace ast;
+     
     IAST* ast = new Val_AST (.4);
     IAST* ast2 = new Var_AST ("hello");
     IAST* ast3 = new Op_AST (op::ADD, ast, ast2);
     IAST* ast4 = new Var_AST ("bum");
     IAST* ast5 = new Op_AST (op::ASSIGN, ast4, ast3);
+    IAST* nast = ast5->clone ();
     ast5->print ("hello.dot");
-    delete ast3;
+    nast->print ("nast.dot");
+    delete ast5; 
+    delete nast;  
 }
 
     
