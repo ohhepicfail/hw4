@@ -4,6 +4,9 @@
 namespace parser {
 
     IAST* Parser::build () {
+        if (root_)
+            return root_->clone ();
+
         root_ = assign_parse ();
 
         ILexem* l = lxr_.cur_lexem ();
@@ -166,5 +169,26 @@ namespace parser {
     }
 
 
+    Parser& Parser::operator= (const Parser& that) {
+        if (this == &that)
+            return *this;
 
+        delete root_;
+        
+        *this = Parser (that);
+
+        return *this;
+    }
+
+
+    Parser& Parser::operator= (Parser&& that) {
+        delete root_;
+
+        root_ = that.root_;
+        that.root_ = nullptr;
+
+        lxr_ = std::move (that.lxr_);
+
+        return *this;
+    }
 }

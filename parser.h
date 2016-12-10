@@ -26,12 +26,15 @@ namespace parser {
         IAST* var_parse ();
 
     public:
-        Parser (const char* filename) : lxr_ (filename) {}
+        explicit Parser (const char* filename) : lxr_ (filename) {}
         ~Parser () { delete root_; }
+        Parser (const Parser& that) : lxr_ (that.lxr_), root_ (that.root_ ? that.root_->clone () : nullptr) {}
+        Parser (Parser&& that) : lxr_ (std::move (that.lxr_)), root_ (that.root_) { that.root_ = nullptr;}
+        Parser& operator= (const Parser& that);
+        Parser& operator= (Parser&& that);
 
 
         IAST* build ();
-
     };
 
 }
