@@ -11,12 +11,20 @@ namespace ipr {
         ast::IAST* root_;
         std::unordered_map <std::string, double> htable_;
 
-        void calculate_assign (const ast::IAST* assign);
-        double calculate_val (const ast::IAST* val_root);
+        void   calculate_assign (const ast::IAST* assign);
+        double calculate_val    (const ast::IAST* val_root);
 
     public:
-        Interpreter (ast::IAST* prog) : root_ (prog) {}
+        explicit Interpreter (ast::IAST* prog) : root_ (prog) {}
         ~Interpreter () { delete root_; }
+        Interpreter (const Interpreter& that) : root_ (that.root_ ? that.root_->clone () : 0)
+                                              , htable_ (that.htable_) {}
+        Interpreter (Interpreter&& that) : root_ (that.root_)
+                                         , htable_ (std::move (that.htable_)) 
+                                         { that.root_ = nullptr; }
+        Interpreter& operator= (const Interpreter& that);
+        Interpreter& operator= (Interpreter&& that);
+
         double run ();
 
     };

@@ -73,7 +73,26 @@ namespace ipr {
     }
 
 
+    Interpreter& Interpreter::operator= (const Interpreter& that) {
+        if (this == &that)
+            return *this;
+
+        delete root_;
+        root_ = nullptr;
+        Interpreter tmp (that);
+        *this = std::move (tmp);
+
+        return *this;
+    }
 
 
+    Interpreter& Interpreter::operator= (Interpreter&& that) {
+        delete root_;
+        root_ = that.root_;
+        that.root_ = nullptr;
 
+        htable_ = std::move (that.htable_);
+
+        return *this;
+    }
 }
