@@ -17,10 +17,14 @@ namespace ast {
     public:
         IAST () {}
         virtual ~IAST () {};
-        virtual IAST* clone () = 0;
+        virtual IAST* clone () const = 0;
 
         void print (const char* filename);
         virtual void dprint (FILE* f) const = 0;
+
+        virtual const IAST* get_left  () const = 0;
+        virtual const IAST* get_right () const = 0;
+
         virtual double       get_val  () const = 0;
         virtual const char*  get_var  () const = 0;
         virtual op::Operator get_op   () const = 0;
@@ -35,9 +39,13 @@ namespace ast {
         Val_AST (double val) : val_ (val) {}
         ~Val_AST () override {}
         Val_AST (const Val_AST& that) : val_ (that.val_) {}
-        IAST* clone () override { return new Val_AST (*this); }
+        IAST* clone () const override { return new Val_AST (*this); }
 
         void dprint (FILE* f) const override;
+
+        const IAST* get_left  () const override { assert (0); }
+        const IAST* get_right () const override { assert (0); }
+
         double       get_val  () const override { return val_; }
         const char*  get_var  () const override { assert (0); }
         op::Operator get_op   () const override { assert (0); }
@@ -49,12 +57,16 @@ namespace ast {
     private:
         char* var_ = nullptr;
     public:
-        Var_AST (const char* var);
+        explicit Var_AST (const char* var);
         ~Var_AST () override { delete[] var_; }
         Var_AST (const Var_AST& that);
-        IAST* clone () override { return new Var_AST (*this); } 
+        IAST* clone () const override { return new Var_AST (*this); } 
 
         void dprint (FILE* f) const override;
+
+        const IAST* get_left  () const override { assert (0); }
+        const IAST* get_right () const override { assert (0); }
+
         double       get_val  () const override { assert (0); }
         const char*  get_var  () const override { return var_; }
         op::Operator get_op   () const override { assert (0); }
@@ -68,7 +80,7 @@ namespace ast {
         IAST* left_  = nullptr;
         IAST* right_ = nullptr;
     public:
-        Op_AST (op::Operator op, IAST* left, IAST* right) : op_ (op), left_ (left), right_ (right) {}
+        explicit Op_AST (op::Operator op, IAST* left, IAST* right) : op_ (op), left_ (left), right_ (right) {}
         ~Op_AST () override { delete left_; delete right_; }
         Op_AST (const Op_AST& that) : op_ (that.op_) {
             if (that.left_)
@@ -76,9 +88,13 @@ namespace ast {
             if (that.right_)
                 right_ = that.right_->clone ();
         }
-        IAST* clone () override { return new Op_AST (*this); }
+        IAST* clone () const override { return new Op_AST (*this); }
 
         void dprint (FILE* f) const override;
+
+        const IAST* get_left  () const override { return left_;  }
+        const IAST* get_right () const override { return right_; }
+
         double       get_val  () const override { assert (0); }
         const char*  get_var  () const override { assert (0); }
         op::Operator get_op   () const override { return op_; }
