@@ -15,7 +15,7 @@ namespace lexem {
     public:
         ILexem () {}
         virtual ~ILexem () {}
-        virtual ILexem* clone () = 0;
+        virtual ILexem* clone () const = 0;
 
         virtual double       get_val  () const = 0;
         virtual const char*  get_var  () const = 0;
@@ -31,7 +31,7 @@ namespace lexem {
         Val_lexem (double val) : val_ (val) {}
         ~Val_lexem () override {}
         Val_lexem (const Val_lexem& that) : val_ (that.val_) {}
-        ILexem* clone () override { return new Val_lexem (*this); }
+        ILexem* clone () const override { return new Val_lexem (*this); }
 
         double       get_val  () const override { return val_; }
         const char*  get_var  () const override { assert (0); }
@@ -44,10 +44,10 @@ namespace lexem {
     private:
         char* var_ = nullptr;
     public:
-        Var_lexem (const char* var);
+        explicit Var_lexem (const char* var);
         ~Var_lexem () override { delete[] var_;}
         Var_lexem (const Var_lexem& that);
-        ILexem* clone () override { return new Var_lexem (*this); }
+        ILexem* clone () const override { return new Var_lexem (*this); }
 
         double       get_val  () const override { assert (0); }
         const char*  get_var  () const override { return var_; }
@@ -61,10 +61,10 @@ namespace lexem {
     private:
         op::Operator op_ = op::NAP;
     public:
-        Op_lexem (op::Operator op) : op_ (op) {}
+        explicit Op_lexem (op::Operator op) : op_ (op) {}
         ~Op_lexem () override {}
         Op_lexem (const Op_lexem& that) : op_ (that.op_) {}
-        ILexem* clone () override { return new Op_lexem (*this); }
+        ILexem* clone () const override { return new Op_lexem (*this); }
 
         double       get_val  () const override { assert (0); }
         const char*  get_var  () const override { assert (0); }

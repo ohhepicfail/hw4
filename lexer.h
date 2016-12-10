@@ -18,7 +18,7 @@ namespace lexem {
         void set_val_lexem ();
         void set_op_lexem ();
     public:
-        Lexer (const char* filename);
+        explicit Lexer (const char* filename);
         ~Lexer ();
         Lexer (const Lexer& that);
         Lexer (Lexer&& that);
