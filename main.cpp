@@ -11,9 +11,11 @@ void test_interpreter ();
 
 
 int main () {
-    // test_ast ();
-    // test_lexer ();
+#if 0
+    test_ast ();
+    test_lexer ();
     test_parser ();
+#endif
     test_interpreter ();
 
     return 0;
@@ -43,6 +45,7 @@ void test_lexer () {
     Lexer lr2 (lr);
     Lexer lr3 (std::move (lr2));
     lr = lr3;
+    lr = lr;
 
     ILexem* tmp = lr.cur_lexem ();
     while (1) {
@@ -99,6 +102,7 @@ void test_parser () {
 
     Parser p6 ("code.txt");
     p6 = p5;
+    p6 = p6;
     tmp = p6.build ();
     tmp->print ("test/parser6.dot");
     delete tmp;
