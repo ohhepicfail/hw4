@@ -124,7 +124,21 @@ void test_parser () {
 
 
 void test_interpreter () {
-    parser::Parser p ("code.txt");
-    ipr::Interpreter i (p.build ());
-    printf ("result %lf\n", i.run ()); 
+    using namespace parser;
+    using namespace ipr;
+    Parser p ("code.txt");
+    Interpreter i (p.build ());
+    Interpreter i1 (i); 
+    printf ("result %lf\n", i.run ());
+
+    Interpreter i2 (i); 
+    Interpreter i3 (std::move (i1));
+    Interpreter i4 (std::move (i2));
+
+    Interpreter i5 (i3);
+    Interpreter i6 (i3);
+    i5 = i4;
+    i6 = std::move (i4);
+
+    i5 = i5;
 }
