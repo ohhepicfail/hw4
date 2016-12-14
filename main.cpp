@@ -5,18 +5,18 @@
 #include "interpreter.h"
 
 void test_ast ();
-void test_lexer ();
-void test_parser ();
-void test_interpreter ();
+void test_lexer (int argc, char* argv[]);
+void test_parser (int argc, char* argv[]);
+void test_interpreter (int argc, char* argv[]);
 
 
-int main () {
+int main (int argc, char* argv[]) {
 #if 0
     test_ast ();
     test_lexer ();
     test_parser ();
 #endif
-    test_interpreter ();
+    test_interpreter (argc, argv);
 
     return 0;
 }
@@ -38,10 +38,14 @@ void test_ast () {
 }
 
     
-void test_lexer () {
+void test_lexer (int argc, char* argv[]) {
     using namespace lexem;
 
-    Lexer lr ("code.txt");
+    const char* if_name = "input.txt";
+    if (argc > 1)
+        if_name = argv[1];
+
+    Lexer lr (if_name);
     Lexer lr2 (lr);
     Lexer lr3 (std::move (lr2));
     lr = lr3;
@@ -68,12 +72,16 @@ void test_lexer () {
 }
 
 
-void test_parser () {
+void test_parser (int argc, char* argv[]) {
     using namespace parser;
 
-    Parser p ("code.txt");
+    const char* if_name = "input.txt";
+    if (argc > 1)
+        if_name = argv[1];
+
+    Parser p (if_name);
     Parser p2 (p);
-    Parser p7 ("code.txt");
+    Parser p7 (if_name);
     p7 = p;
     IAST* tmp = p.build ();
     tmp->print ("test/parser1.dot");
@@ -90,7 +98,8 @@ void test_parser () {
     tmp->print ("test/parser3.dot");
     delete tmp;
 
-    Parser p4 (Parser ("code.txt"));
+    Parser ptmp (if_name);
+    Parser p4 (std::move (ptmp));
     tmp = p4.build ();
     tmp->print ("test/parser4.dot");
     delete tmp;
@@ -100,7 +109,7 @@ void test_parser () {
     tmp->print ("test/parser5.dot");
     delete tmp;
 
-    Parser p6 ("code.txt");
+    Parser p6 (if_name);
     p6 = p5;
     p6 = p6;
     tmp = p6.build ();
@@ -111,7 +120,7 @@ void test_parser () {
     tmp->print ("test/parser7.dot");
     delete tmp;
 
-    Parser p8 ("code.txt");
+    Parser p8 (if_name);
     Parser p9 (p8);
     delete p8.build ();
     Parser p10 (p8);
@@ -127,13 +136,23 @@ void test_parser () {
 }
 
 
-void test_interpreter () {
+void test_interpreter (int argc, char* argv[]) {
     using namespace parser;
     using namespace ipr;
-    Parser p ("code.txt");
+
+    const char* if_name = "input.txt";
+    const char* of_name = "output.txt";
+    if (argc > 1)
+        if_name = argv[1];
+    if (argc > 2)
+        of_name = argv[2];
+    Parser p (if_name);
     Interpreter i (p.build ());
-    Interpreter i1 (i); 
-    printf ("result %lf\n", i.run ());
+    Interpreter i1 (i);
+    FILE* of = fopen (of_name, "wb");
+    assert (of); 
+    fprintf (of, "result %lf\n", i.run ());
+    fclose (of);
 
     Interpreter i2 (i); 
     Interpreter i3 (std::move (i1));
