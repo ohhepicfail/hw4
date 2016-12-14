@@ -5,6 +5,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
 #include "operator.h"
 #include "type.h"
 
