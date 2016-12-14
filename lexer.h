@@ -3,6 +3,7 @@
 
 #include "lexem.h"
 #include <cstdio>
+#include <cctype>
 
 namespace lexem {
 
