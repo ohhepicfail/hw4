@@ -1,8 +1,7 @@
 CXX = g++
-CXXFLAGS = -Wall -Wextra -pedantic -Werror -Wno-return-local-addr -std=c++14 -g3 -Wswitch-default -Wmaybe-uninitialized	-Wredundant-decls
+CXXFLAGS = -Wall -Wextra -pedantic -Werror -Wno-return-local-addr -std=c++14 -g3 -Wswitch-default -Wmaybe-uninitialized -Wredundant-decls
 
 all: compile clean
-	./interpreter
 
 all_valgrind: compile clean
 	valgrind ./interpreter
