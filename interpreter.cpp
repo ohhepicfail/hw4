@@ -37,7 +37,12 @@ namespace ipr {
         auto var = assign->get_left ();
         assert (var->get_type () == type::VAR);
 
-        htable_.insert (std::make_pair (var->get_var (), calculate_val (assign->get_right ())));
+        auto res = calculate_val (assign->get_right ());
+        auto find_res = htable_.find (var->get_var ());
+        if (find_res == htable_.end ())
+            htable_.insert (std::make_pair (var->get_var (), res));
+        else
+            find_res->second = res;
     }
 
 
