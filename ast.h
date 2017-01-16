@@ -20,7 +20,7 @@ namespace ast {
         virtual ~IAST () {};
         virtual IAST* clone () const = 0;
 
-        void print (const char* filename);
+        void print (const char* filename) const;
         virtual void dprint (FILE* f) const = 0;
 
         virtual const IAST* get_left  () const = 0;

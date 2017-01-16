@@ -13,7 +13,7 @@ namespace ast {
  *          
  */
 
-    void IAST::print (const char* filename) {
+    void IAST::print (const char* filename) const {
         FILE* f = fopen (filename, "wr");
         assert (f);
 
