@@ -19,8 +19,6 @@ namespace lexem {
         fclose (f);
 
         next_lexem ();
-        auto tmp = cur_lexem ();
-        delete tmp;
     }
 
 
@@ -99,7 +97,7 @@ namespace lexem {
 
         if (isalpha (text_[cur_pos_]))
             set_var_lexem ();
-        else if (isdigit (text_[cur_pos_]) || text_[cur_pos_] == '.')
+        else if (isdigit (text_[cur_pos_]) || text_[cur_pos_] == '.' || text_[cur_pos_] == '-')
             set_val_lexem ();
         else
             set_op_lexem ();
@@ -143,23 +141,26 @@ namespace lexem {
     void Lexer::set_val_lexem () {
         double val = .0;
 
+        bool minus = false;
+        if (text_[cur_pos_] == '-') {
+            minus = true;
+            cur_pos_++;
+        }
+
         while (isdigit (text_[cur_pos_]))
             val = val * 10 + text_[cur_pos_++] - '0';
 
-        if (text_[cur_pos_] != '.') {
-            lexem_ = new Val_lexem (val);
-            return;
-        }
-        cur_pos_++;
+        if (text_[cur_pos_] == '.') {
+            cur_pos_++;
 
-        unsigned counter = 10;
-        assert (isdigit (text_[cur_pos_]));
-        while (isdigit (text_[cur_pos_])) {
-            val += static_cast<double> (text_[cur_pos_++] - '0') / counter;
-            counter *= 10;
+            unsigned counter = 10;
+            assert (isdigit (text_[cur_pos_]));
+            while (isdigit (text_[cur_pos_])) {
+                val += static_cast<double> (text_[cur_pos_++] - '0') / counter;
+                counter *= 10;
+            }
         }
-
-        lexem_ = new Val_lexem (val);
+        lexem_ = new Val_lexem (minus ? -val : val);
     }
 
 
