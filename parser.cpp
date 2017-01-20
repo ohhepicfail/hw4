@@ -10,13 +10,16 @@ namespace parser {
         root_ = assign_parse ();
 
         ILexem* l = lxr_.cur_lexem ();
-        while (l->get_type () == OP && l->get_op () == op::EOL) {
+        while (l->get_type () == OP && l->get_op () == op::SMCN) {
             lxr_.next_lexem ();
-            delete l;
-            l = lxr_.cur_lexem ();
-            if (l->get_type () == OP && l->get_op () == op::END)
+            ILexem* new_l = lxr_.cur_lexem ();
+            if (new_l->get_type () == OP && new_l->get_op () == op::END) {
+                delete new_l;
                 break;
-            if (l->get_type () == OP && l->get_op () == op::EOL)
+            }
+            delete l;
+            l = std::move (new_l);
+            if (l->get_type () == OP && l->get_op () == op::SMCN)
                 continue;
 
             IAST* right = assign_parse ();
@@ -26,8 +29,20 @@ namespace parser {
             l = lxr_.cur_lexem ();
         }
 
-        assert (l->get_type () == OP && l->get_op () == op::END);
+        if (l->get_type () != OP || l->get_op () != op::SMCN) {
+            printf ("\nexpected ';' before line %u, pos %u\n\n", l->get_line (), l->get_pos ());
+            abort ();
+        }
+
+        if (!root_) {
+            printf ("\nsyntax error at line %u, pos %u\n\n", l->get_line (), l->get_pos ());
+            abort ();
+        }   
+
+        printf ("\nParser:\nthe end of the program was reached at line %u, pos %u\n\n", l->get_line (), l->get_pos ());
         delete l;
+
+        root_->print ("tree.dot");
 
         return root_->clone ();
     } 
@@ -38,10 +53,17 @@ namespace parser {
         IAST* left = var_parse ();
 
         ILexem* lex = lxr_.cur_lexem ();
-        assert (lex->get_type () != OP || lex->get_op () == ASSIGN);
+        if (lex->get_type () != OP || lex->get_op () != ASSIGN) {
+            printf ("\nexpected '=' at line %u, pos %u\n\n", lex->get_line (), lex->get_pos ());
+            abort ();
+        }
         lxr_.next_lexem ();
 
         IAST* right = addsub_parse ();
+        if (!right) {
+            printf ("\nsyntax error at line %u, pos %u\n\n", lex->get_line (), lex->get_pos ());
+            abort ();
+        }
 
         delete lex;
         return new Op_AST (ASSIGN, left, right);
@@ -50,39 +72,23 @@ namespace parser {
 
     IAST* Parser::addsub_parse () {
         using namespace op;
-        IAST* ast = brt_md_parse ();
+        IAST* ast = muldiv_parse ();
 
         ILexem* lex = lxr_.cur_lexem ();
         while (lex->get_type () == OP && (lex->get_op () == ADD || lex->get_op () == SUB)) {
             Operator oper = lex->get_op ();
             lxr_.next_lexem ();
 
-            IAST* right = brt_md_parse ();
+            IAST* right = muldiv_parse ();
+            if ((ast == nullptr && oper != op::SUB) || right == nullptr) {
+                printf ("\nsyntax error at line %u, pos %u\n\n", lex->get_line (), lex->get_pos ());
+                abort ();
+            }
             ast = new Op_AST (oper, ast, right);
 
             delete lex;
             lex = lxr_.cur_lexem ();
         }
-        delete lex;
-
-        return ast;
-    }
-
-
-    IAST* Parser::brt_md_parse () {
-        ILexem* lex = lxr_.cur_lexem ();
-        IAST* ast = nullptr;
-        if (lex->get_type () == OP && lex->get_op () == op::OBRT) {
-            delete lex;
-            lxr_.next_lexem ();
-            ast = addsub_parse ();
-
-            lex = lxr_.cur_lexem ();
-            assert (lex->get_type () == OP && lex->get_op () == op::CBRT);
-            lxr_.next_lexem ();
-        }
-        else
-            ast = muldiv_parse ();
 
         delete lex;
         return ast;
@@ -91,26 +97,30 @@ namespace parser {
 
     IAST* Parser::muldiv_parse () {
         using namespace op;
-        IAST* ast = brt_vlvr_parse ();
+        IAST* ast = bracket_parse ();
 
         ILexem* lex = lxr_.cur_lexem ();
         while (lex->get_type () == OP && (lex->get_op () == MUL || lex->get_op () == DIV)) {
             Operator oper = lex->get_op ();
             lxr_.next_lexem ();
 
-            IAST* right = brt_vlvr_parse ();
+            IAST* right = bracket_parse ();
+            if (ast == nullptr || right == nullptr) {
+                printf ("\nsyntax error at line %u, pos %u\n\n", lex->get_line (), lex->get_pos ());
+                abort ();
+            }
             ast = new Op_AST (oper, ast, right);
 
             delete lex;
             lex = lxr_.cur_lexem ();
         }
-        delete lex;
 
+        delete lex;
         return ast;
     }
 
 
-    IAST* Parser::brt_vlvr_parse () {
+    IAST* Parser::bracket_parse () {
         ILexem* lex = lxr_.cur_lexem ();
         IAST* ast = nullptr;
         if (lex->get_type () == OP && lex->get_op () == op::OBRT) {
@@ -119,7 +129,10 @@ namespace parser {
             ast = addsub_parse ();
 
             lex = lxr_.cur_lexem ();
-            assert (lex->get_type () == OP && lex->get_op () == op::CBRT); 
+            if (lex->get_type () != OP || lex->get_op () != op::CBRT) {
+                printf ("\nexpected ')' before line %u, pos %u\n\n", lex->get_line (), lex->get_pos ());
+                abort ();
+            } 
             lxr_.next_lexem ();
         }
         else
@@ -138,8 +151,6 @@ namespace parser {
             res = val_parse ();
         else if (l->get_type () == VAR)
             res = var_parse ();
-        else
-            assert (0);
 
         delete l;
         return res;
@@ -161,9 +172,18 @@ namespace parser {
         ILexem* l = lxr_.cur_lexem ();
         lxr_.next_lexem ();
 
-        assert (l->get_type () == VAR);
+        if (l->get_type () != VAR) {
+            printf ("\nexpected primary-expression before ");
+            if (l->get_type () == VAL)
+                printf ("'%lg'", l->get_val ());
+            else
+                printf ("'%s'", string_eq (l->get_op ()));
+            printf (" at line %u, pos %u\n\n", l->get_line (), l->get_pos ());
+            abort ();
+        }
 
         IAST* ast = new Var_AST (l->get_var ());
+
         delete l;
         return ast;
     }

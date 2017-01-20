@@ -18,9 +18,8 @@ namespace parser {
 
         IAST* assign_parse ();
         IAST* addsub_parse ();
-        IAST* brt_md_parse ();
         IAST* muldiv_parse ();
-        IAST* brt_vlvr_parse ();
+        IAST* bracket_parse ();
         IAST* vlvr_parse ();
         IAST* val_parse ();
         IAST* var_parse ();
