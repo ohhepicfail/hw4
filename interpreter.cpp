@@ -52,6 +52,10 @@ namespace ipr {
 
         if (val_root->get_type () == type::VAL)
             return val_root->get_val ();
+        if (val_root->get_type () == type::OP
+            && val_root->get_op () == op::SUB
+            && val_root->get_left () == nullptr)
+            return -calculate_val (val_root->get_right ());
         if (val_root->get_type () == type::VAR) {
             auto find_res = htable_.find (val_root->get_var ());
             if (find_res == htable_.end ()) {
