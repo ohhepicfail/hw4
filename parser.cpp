@@ -42,8 +42,6 @@ namespace parser {
         printf ("\nParser:\nthe end of the program was reached at line %u, pos %u\n\n", l->get_line (), l->get_pos ());
         delete l;
 
-        root_->print ("tree.dot");
-
         return root_->clone ();
     } 
 
