@@ -3,7 +3,7 @@
 
 namespace lexem {
 
-    Var_lexem::Var_lexem (const char* var) { 
+    Var_lexem::Var_lexem (const char* var, unsigned line, unsigned pos) : ILexem (line, pos) { 
         auto n = strlen (var); 
         n++;
         var_  = new char [n];  
@@ -11,7 +11,8 @@ namespace lexem {
     }
 
 
-    Var_lexem::Var_lexem (const Var_lexem& that) {
+    Var_lexem::Var_lexem (const Var_lexem& that)
+        : ILexem (that.get_line (), that.get_pos ()) {
         if (that.var_) {
             auto n = strlen (that.var_); 
             n++;

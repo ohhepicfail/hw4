@@ -13,7 +13,7 @@ namespace lexem {
 
     class ILexem { 
     public:
-        ILexem () {}
+        ILexem (unsigned line, unsigned pos) : line_ (line), pos_ (pos) {}
         virtual ~ILexem () {}
         virtual ILexem* clone () const = 0;
 
@@ -21,6 +21,14 @@ namespace lexem {
         virtual const char*  get_var  () const = 0;
         virtual op::Operator get_op   () const = 0;
         virtual Type         get_type () const { return NAT; }
+
+        unsigned get_line () const { return line_; }
+        unsigned get_pos  () const { return pos_;  }
+
+
+    private:
+        unsigned line_;
+        unsigned pos_;
     };
 
 
@@ -28,9 +36,9 @@ namespace lexem {
     private:
         double val_;
     public:
-        Val_lexem (double val) : val_ (val) {}
+        Val_lexem (double val, unsigned line, unsigned pos) : ILexem (line, pos), val_ (val) {}
         ~Val_lexem () override {}
-        Val_lexem (const Val_lexem& that) : val_ (that.val_) {}
+        Val_lexem (const Val_lexem& that) : ILexem (that.get_line (), that.get_pos ()), val_ (that.val_) {}
         ILexem* clone () const override { return new Val_lexem (*this); }
 
         double       get_val  () const override { return val_; }
@@ -44,7 +52,7 @@ namespace lexem {
     private:
         char* var_ = nullptr;
     public:
-        explicit Var_lexem (const char* var);
+        Var_lexem (const char* var, unsigned line, unsigned pos);
         ~Var_lexem () override { delete[] var_;}
         Var_lexem (const Var_lexem& that);
         ILexem* clone () const override { return new Var_lexem (*this); }
@@ -61,9 +69,9 @@ namespace lexem {
     private:
         op::Operator op_ = op::NAP;
     public:
-        explicit Op_lexem (op::Operator op) : op_ (op) {}
+        Op_lexem (op::Operator op, unsigned line, unsigned pos) : ILexem (line, pos), op_ (op) {}
         ~Op_lexem () override {}
-        Op_lexem (const Op_lexem& that) : op_ (that.op_) {}
+        Op_lexem (const Op_lexem& that) : ILexem (that.get_line (), that.get_pos ()), op_ (that.op_) {}
         ILexem* clone () const override { return new Op_lexem (*this); }
 
         double       get_val  () const override { assert (0); }
