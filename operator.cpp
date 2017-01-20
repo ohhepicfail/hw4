@@ -9,10 +9,10 @@ namespace op {
             case MUL    : return "*";       break;
             case DIV    : return "/";       break;
             case CODE   : return "CODE";    break;
-            case EOL    : return "EOL";     break;
             case END    : return "END";     break;
-            case OBRT   : return "OBRT";    break;
-            case CBRT   : return "CBRT";    break;
+            case OBRT   : return "(";       break;
+            case CBRT   : return ")";       break;
+            case SMCN   : return ";";       break;
             case NAP    : return "NAP";     break;
             default     : return "DEFAULT"; break;
         }

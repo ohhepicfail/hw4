@@ -10,10 +10,10 @@ namespace op {
         MUL,
         DIV,
         CODE,
-        EOL,
         END,
         OBRT,
         CBRT,
+        SMCN,
         NAP
     };
 
