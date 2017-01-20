@@ -35,7 +35,9 @@ namespace lexem {
             text_ = new char[that.tsize_];
             std::copy (that.text_, that.text_ + that.tsize_, text_);
             cur_pos_ = that.cur_pos_;
-            tsize_ = that.tsize_;
+            tsize_   = that.tsize_;
+            pos_     = that.pos_;
+            line_    = that.line_;
         }
     }
 
@@ -43,12 +45,16 @@ namespace lexem {
     Lexer::Lexer (Lexer&& that) : lexem_ (that.lexem_)
                                 , text_ (that.text_)
                                 , cur_pos_ (that.cur_pos_)
-                                , tsize_ (that.tsize_) 
+                                , tsize_ (that.tsize_)
+                                , line_ (that.line_)
+                                , pos_ (that.pos_) 
     {
-        that.lexem_ = nullptr;
-        that.text_ = nullptr;
+        that.lexem_   = nullptr;
+        that.text_    = nullptr;
         that.cur_pos_ = 0;
-        that.tsize_ = 0;
+        that.tsize_   = 0;
+        that.line_    = 1;
+        that.pos_     = 1;
     }
 
 
@@ -76,8 +82,12 @@ namespace lexem {
 
         cur_pos_ = that.cur_pos_;
         tsize_   = that.tsize_;
+        line_    = that.line_;
+        pos_     = that.pos_;
         that.cur_pos_ = 0;
         that.tsize_   = 0;
+        that.line_    = 1;
+        that.pos_     = 1;
 
         return *this;
     }
@@ -94,10 +104,9 @@ namespace lexem {
         delete lexem_;
 
         skip_spaces ();
-
-        if (isalpha (text_[cur_pos_]))
+        if (cur_pos_ < tsize_ && isalpha (text_[cur_pos_]))
             set_var_lexem ();
-        else if (isdigit (text_[cur_pos_]) || text_[cur_pos_] == '.' || text_[cur_pos_] == '-')
+        else if (cur_pos_ < tsize_ && (isdigit (text_[cur_pos_]) || text_[cur_pos_] == '.'))
             set_val_lexem ();
         else
             set_op_lexem ();
@@ -105,62 +114,68 @@ namespace lexem {
 
 
     void Lexer::skip_spaces () {
-        while (text_[cur_pos_] == ' ')
+        while (cur_pos_ < tsize_ && (text_[cur_pos_] == ' ' || text_[cur_pos_] == '\n')) {
+            if (text_[cur_pos_] == '\n')
+                increase_line ();
             cur_pos_++;
+        }
     }
 
 
     void Lexer::set_op_lexem () {
 
         using namespace op;
-        auto c = text_[cur_pos_];
         Operator op = NAP;
-
-        switch (c) {
-            case '+'  : op = ADD;    break;
-            case '-'  : op = SUB;    break;
-            case '*'  : op = MUL;    break;
-            case '/'  : op = DIV;    break;
-            case '='  : op = ASSIGN; break;
-            case '\n' : op = EOL;    break;
-            case '\0' : op = END;    break;
-            case '('  : op = OBRT;   break;
-            case ')'  : op = CBRT;   break;
-            default : break;
-        }
-
-        cur_pos_++;
-        if (cur_pos_ == tsize_)
+        if (cur_pos_ >= tsize_)
             op = END;
-        assert (op != NAP);
+        else {
+            auto c = text_[cur_pos_];
 
-        lexem_ = new Op_lexem (op);
+            switch (c) {
+                case '+'  : op = ADD;    break;
+                case '-'  : op = SUB;    break;
+                case '*'  : op = MUL;    break;
+                case '/'  : op = DIV;    break;
+                case '='  : op = ASSIGN; break;
+                case '\0' : op = END;    break;
+                case '('  : op = OBRT;   break;
+                case ')'  : op = CBRT;   break;
+                case ';'  : op = SMCN;   break;
+                default   :              break;
+            }
+
+            cur_pos_++;
+            if (op == NAP) {
+                printf ("\nunrecognized lexem \'%c\' at line %u, pos %u\n\n", c, line_, pos_);
+                abort ();
+            }
+        }
+        lexem_ = new Op_lexem (op, line_, pos_);
+        increase_pos ();
     }
 
 
     void Lexer::set_val_lexem () {
         double val = .0;
 
-        bool minus = false;
-        if (text_[cur_pos_] == '-') {
-            minus = true;
-            cur_pos_++;
-        }
-
-        while (isdigit (text_[cur_pos_]))
+        while (isdigit (text_[cur_pos_])) 
             val = val * 10 + text_[cur_pos_++] - '0';
 
         if (text_[cur_pos_] == '.') {
             cur_pos_++;
 
             unsigned counter = 10;
-            assert (isdigit (text_[cur_pos_]));
+            if (!isdigit (text_[cur_pos_])) {
+                printf ("\nincorrect digit %lg. at line %u, pos %u\n\n", val, line_, pos_);
+                abort ();
+            }
             while (isdigit (text_[cur_pos_])) {
                 val += static_cast<double> (text_[cur_pos_++] - '0') / counter;
                 counter *= 10;
             }
         }
-        lexem_ = new Val_lexem (minus ? -val : val);
+        lexem_ = new Val_lexem (val, line_, pos_);
+        increase_pos ();
     }
 
 
@@ -175,8 +190,9 @@ namespace lexem {
         std::copy (text_ + begin, text_ + end - 1, tmp);
         cur_pos_ += end - begin - 1;
 
-        lexem_ = new Var_lexem (tmp);
+        lexem_ = new Var_lexem (tmp, line_, pos_);
         delete[] tmp;
+        increase_pos ();
     }
 
 

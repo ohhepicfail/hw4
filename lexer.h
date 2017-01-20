@@ -14,6 +14,12 @@ namespace lexem {
         unsigned cur_pos_ = 0;
         unsigned tsize_ = 0;
 
+        unsigned line_ = 1;
+        unsigned pos_ = 1;
+
+        void increase_line () { line_++; pos_ = 1; }
+        void increase_pos  () { pos_++; }
+
         void skip_spaces ();
         void set_var_lexem ();
         void set_val_lexem ();
