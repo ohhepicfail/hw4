@@ -24,7 +24,10 @@ namespace ipr {
         }
 
         auto find_res = htable_.find ("result");
-        assert (find_res != htable_.end ());
+        if (find_res == htable_.end ()) {
+            printf ("No variable 'result'\n");
+            abort ();
+        }
         return find_res->second;
     }
 
