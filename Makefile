@@ -14,6 +14,9 @@ run:
 
 tests: compile run_tests diff
 
+read:
+	cat output.txt
+
 run_tests:
 	echo "${LCYAN}Running tests";							\
 	number=1;									 			\
@@ -35,7 +38,7 @@ all_valgrind: compile clean
 
 compile: ast.cpp lexem.cpp lexer.cpp operator.cpp parser.cpp interpreter.cpp main.cpp
 	$(CXX) $(CXXFLAGS) ast.cpp lexem.cpp lexer.cpp operator.cpp parser.cpp interpreter.cpp main.cpp -o interpreter; \
-	echo "${LCYAN}Compilation is completed\n";
+	echo "${LCYAN}Compilation is completed\n${NORMAL}";
 
 clean:
 	rm -rf *.o
