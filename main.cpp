@@ -51,24 +51,21 @@ void test_lexer (int argc, char* argv[]) {
     lr = lr3;
     lr = lr;
 
-    ILexem* tmp = lr.cur_lexem ();
+    Lexem tmp = lr.cur_lexem ();
     while (1) {
-        if (tmp->get_type () == VAR)
-            printf ("var\t%s\n", tmp->get_var ());
-        if (tmp->get_type () == VAL)
-            printf ("val\t%lf\n", tmp->get_val ()); 
-        if (tmp->get_type () == OP) {
-            auto t = tmp->get_op ();
+        if (tmp.get_type () == VAR)
+            printf ("var\t%s\n", tmp.get_var ());
+        if (tmp.get_type () == VAL)
+            printf ("val\t%lf\n", tmp.get_val ()); 
+        if (tmp.get_type () == OP) {
+            auto t = tmp.get_op ();
             printf ("op \t%s\n", op::string_eq (t));
             if (t == op::END)
                 break;   
         }
-        delete tmp;
         lr.next_lexem ();
         tmp = lr.cur_lexem ();
     }
-
-    delete tmp;
 }
 
 
