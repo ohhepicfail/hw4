@@ -23,14 +23,12 @@ namespace lexem {
 
 
     Lexer::~Lexer () {
-        delete lexem_;
         delete[] text_;
     }
 
 
     Lexer::Lexer (const Lexer& that) {
-        if (that.lexem_)
-            lexem_ = that.cur_lexem ();
+        lexem_ = that.cur_lexem ();
         if (that.text_) {
             text_ = new char[that.tsize_];
             std::copy (that.text_, that.text_ + that.tsize_, text_);
@@ -49,20 +47,13 @@ namespace lexem {
                                 , line_ (that.line_)
                                 , pos_ (that.pos_) 
     {
-        that.lexem_   = nullptr;
         that.text_    = nullptr;
-        that.cur_pos_ = 0;
-        that.tsize_   = 0;
-        that.line_    = 1;
-        that.pos_     = 1;
     }
 
 
     Lexer& Lexer::operator= (const Lexer& that) {
         if (this != &that) {
-            delete lexem_;
             delete[] text_;
-            lexem_ = nullptr;
             text_  = nullptr;
 
             Lexer tmp (that);
@@ -73,36 +64,26 @@ namespace lexem {
 
 
     Lexer& Lexer::operator= (Lexer&& that) {
-        delete lexem_;
         delete[] text_;
         lexem_ = that.lexem_;
         text_  = that.text_;
-        that.lexem_ = nullptr;
         that.text_  = nullptr;
 
         cur_pos_ = that.cur_pos_;
         tsize_   = that.tsize_;
         line_    = that.line_;
         pos_     = that.pos_;
-        that.cur_pos_ = 0;
-        that.tsize_   = 0;
-        that.line_    = 1;
-        that.pos_     = 1;
 
         return *this;
     }
 
 
-    ILexem* Lexer::cur_lexem () const {
-        ILexem* tmp = lexem_->clone ();
-
-        return tmp;
+    Lexem Lexer::cur_lexem () const {
+        return lexem_;
     }
 
 
     void Lexer::next_lexem () {
-        delete lexem_;
-
         skip_spaces ();
         if (cur_pos_ < tsize_ && isalpha (text_[cur_pos_]))
             set_var_lexem ();
@@ -110,6 +91,7 @@ namespace lexem {
             set_val_lexem ();
         else
             set_op_lexem ();
+
     }
 
 
@@ -150,7 +132,7 @@ namespace lexem {
                 abort ();
             }
         }
-        lexem_ = new Op_lexem (op, line_, pos_);
+        lexem_ = Lexem (op, line_, pos_);
         increase_pos ();
     }
 
@@ -174,7 +156,7 @@ namespace lexem {
                 counter *= 10;
             }
         }
-        lexem_ = new Val_lexem (val, line_, pos_);
+        lexem_ = Lexem (val, line_, pos_);
         increase_pos ();
     }
 
@@ -190,7 +172,7 @@ namespace lexem {
         std::copy (text_ + begin, text_ + end - 1, tmp);
         cur_pos_ += end - begin - 1;
 
-        lexem_ = new Var_lexem (tmp, line_, pos_);
+        lexem_ = Lexem (tmp, line_, pos_);
         delete[] tmp;
         increase_pos ();
     }

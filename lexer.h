@@ -9,7 +9,7 @@ namespace lexem {
 
     class Lexer {
     private:
-        ILexem* lexem_ = nullptr;
+        Lexem lexem_;
         char* text_ = nullptr;
         unsigned cur_pos_ = 0;
         unsigned tsize_ = 0;
@@ -32,7 +32,7 @@ namespace lexem {
         Lexer& operator= (const Lexer& that);
         Lexer& operator= (Lexer&& that);
 
-        ILexem* cur_lexem () const;
+        Lexem cur_lexem () const;
         void next_lexem ();
     };
 
