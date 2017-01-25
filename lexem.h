@@ -10,76 +10,60 @@
 
 namespace lexem {
     using namespace type;
+    using namespace op;
 
-    class ILexem { 
+    class Lexem {
     public:
-        ILexem (unsigned line, unsigned pos) : line_ (line), pos_ (pos) {}
-        virtual ~ILexem () {}
-        virtual ILexem* clone () const = 0;
-
-        virtual double       get_val  () const = 0;
-        virtual const char*  get_var  () const = 0;
-        virtual op::Operator get_op   () const = 0;
-        virtual Type         get_type () const { return NAT; }
+        Lexem () : type_ (NAT), line_ (0), pos_ (0) {}
+        Lexem (Operator op, unsigned line, unsigned pos) : type_ (OP) , op_ (op)  , line_ (line), pos_ (pos) {}
+        Lexem (double val , unsigned line, unsigned pos) : type_ (VAL), val_ (val), line_ (line), pos_ (pos) {}
+        Lexem (char* var  , unsigned line, unsigned pos);
+        ~Lexem () { if (type_ == VAR) delete[] var_; }
+        Lexem (const Lexem& that);
+        Lexem (Lexem&& that);
+        Lexem& operator= (const Lexem& that);
+        Lexem& operator= (Lexem&& that);
 
         unsigned get_line () const { return line_; }
-        unsigned get_pos  () const { return pos_;  }
+        unsigned get_pos  () const { return pos_ ; }
 
+        Type get_type () const { return type_; }
+        double get_val () const {
+            if (type_ != VAL) {
+                printf ("\nError in Lexem. I can't return val, because type != VAL\n"); 
+                abort ();
+            } 
+            else 
+                return val_; 
+        }
+        Operator get_op () const {
+            if (type_ != OP) {
+                printf ("\nError in Lexem. I can't return op, because type != OP\n"); 
+                abort ();
+            } 
+            else 
+                return op_; 
+        }
+        const char* get_var () const {
+            if (type_ != VAR) {
+                printf ("\nError in Lexem. I can't return var, because type != VAR\n"); 
+                abort ();
+            } 
+            else 
+                return var_; 
+        }
 
     private:
+        Type type_;
+        union {
+            Operator op_;
+            double val_;
+            char*  var_;
+        };
+
         unsigned line_;
         unsigned pos_;
     };
-
-
-    class Val_lexem final: public ILexem {
-    private:
-        double val_;
-    public:
-        Val_lexem (double val, unsigned line, unsigned pos) : ILexem (line, pos), val_ (val) {}
-        ~Val_lexem () override {}
-        Val_lexem (const Val_lexem& that) : ILexem (that.get_line (), that.get_pos ()), val_ (that.val_) {}
-        ILexem* clone () const override { return new Val_lexem (*this); }
-
-        double       get_val  () const override { return val_; }
-        const char*  get_var  () const override { assert (0); }
-        op::Operator get_op   () const override { assert (0); }
-        Type         get_type () const override { return VAL; }
-    };
-
-
-    class Var_lexem final: public ILexem {
-    private:
-        char* var_ = nullptr;
-    public:
-        Var_lexem (const char* var, unsigned line, unsigned pos);
-        ~Var_lexem () override { delete[] var_;}
-        Var_lexem (const Var_lexem& that);
-        ILexem* clone () const override { return new Var_lexem (*this); }
-
-        double       get_val  () const override { assert (0); }
-        const char*  get_var  () const override { return var_; }
-        op::Operator get_op   () const override { assert (0); }
-        Type         get_type () const override { return VAR; }
-        
-    };
-
-
-    class Op_lexem final: public ILexem {
-    private:
-        op::Operator op_ = op::NAP;
-    public:
-        Op_lexem (op::Operator op, unsigned line, unsigned pos) : ILexem (line, pos), op_ (op) {}
-        ~Op_lexem () override {}
-        Op_lexem (const Op_lexem& that) : ILexem (that.get_line (), that.get_pos ()), op_ (that.op_) {}
-        ILexem* clone () const override { return new Op_lexem (*this); }
-
-        double       get_val  () const override { assert (0); }
-        const char*  get_var  () const override { assert (0); }
-        op::Operator get_op   () const override { return op_; }
-        Type         get_type () const override { return OP; }
-    };
-
 }
 
 #endif
