@@ -36,7 +36,6 @@ namespace parser {
         }   
 
         printf ("\tParser: the end of the program was reached at line %u, pos %u\n", l.get_line (), l.get_pos ());
-
         return root_->clone ();
     } 
 
@@ -52,7 +51,7 @@ namespace parser {
         }
         lxr_.next_lexem ();
 
-        IAST* right = addsub_parse ();
+        IAST* right = tern_parse ();
         if (!right) {
             printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
             abort ();
@@ -62,9 +61,85 @@ namespace parser {
     }
 
 
-    IAST* Parser::addsub_parse () {
+    IAST* Parser::tern_parse () {
         using namespace op;
-        IAST* ast = muldiv_parse ();
+        IAST* cond = cond_parse ();
+
+        Lexem lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != QUESTION) {
+            IAST* residual_part = addsub_parse (cond);
+            return residual_part;
+        }
+        lxr_.next_lexem ();
+        IAST* iftrue = addsub_parse ();
+
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != COLON) {
+            printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        IAST* iffalse = addsub_parse ();
+
+        IAST* code = new Op_AST (CODE, iftrue, iffalse);
+        return new Op_AST (TERN, cond, code);
+    }
+
+
+    IAST* Parser::cond_parse () {
+        using namespace op;
+        Lexem lex = lxr_.cur_lexem ();
+        bool brackets = false;
+        if (lex.get_type () == OP && lex.get_op () == OBRT) {
+            lxr_.next_lexem ();
+            brackets = true;
+        }
+
+        IAST* left = addsub_parse ();
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || ! (lex.get_op () == MORE
+                                     || lex.get_op () == LESS
+                                     || lex.get_op () == MOREOREQ
+                                     || lex.get_op () == LESSOREQ
+                                     || lex.get_op () == EQUAL
+                                     || lex.get_op () == NOTEQUAL)) {
+            if (!brackets)
+                return left;
+
+            if (lex.get_type () == OP && lex.get_op () == CBRT) {
+                lxr_.next_lexem ();
+                return left;
+            }
+            else {
+                printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+                abort ();
+            }
+        }
+
+        Operator cond = lex.get_op ();
+        lxr_.next_lexem ();
+        IAST* right = addsub_parse ();
+
+        if (brackets) {
+            lex = lxr_.cur_lexem ();
+            lxr_.next_lexem ();
+            if (lex.get_type () != OP || lex.get_op () != CBRT) {
+                printf ("\nexpected ')' before line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+                abort ();
+            }
+        }
+
+        return new Op_AST (cond, left, right);
+    }
+
+
+    IAST* Parser::addsub_parse (IAST* left) {
+        using namespace op;
+        if (!left)
+            left = muldiv_parse ();
+        else
+            left = muldiv_parse (left);
 
         Lexem lex = lxr_.cur_lexem ();
         while (lex.get_type () == OP && (lex.get_op () == ADD || lex.get_op () == SUB)) {
@@ -72,22 +147,23 @@ namespace parser {
             lxr_.next_lexem ();
 
             IAST* right = muldiv_parse ();
-            if ((ast == nullptr && oper != op::SUB) || right == nullptr) {
+            if ((left == nullptr && oper != op::SUB) || right == nullptr) {
                 printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
                 abort ();
             }
-            ast = new Op_AST (oper, ast, right);
+            left = new Op_AST (oper, left, right);
 
             lex = lxr_.cur_lexem ();
         }
 
-        return ast;
+        return left;
     }
 
 
-    IAST* Parser::muldiv_parse () {
+    IAST* Parser::muldiv_parse (IAST* left) {
         using namespace op;
-        IAST* ast = bracket_parse ();
+        if (!left)
+            left = bracket_parse ();
 
         Lexem lex = lxr_.cur_lexem ();
         while (lex.get_type () == OP && (lex.get_op () == MUL || lex.get_op () == DIV)) {
@@ -95,16 +171,16 @@ namespace parser {
             lxr_.next_lexem ();
 
             IAST* right = bracket_parse ();
-            if (ast == nullptr || right == nullptr) {
+            if (left == nullptr || right == nullptr) {
                 printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
                 abort ();
             }
-            ast = new Op_AST (oper, ast, right);
+            left = new Op_AST (oper, left, right);
 
             lex = lxr_.cur_lexem ();
         }
 
-        return ast;
+        return left;
     }
 
 

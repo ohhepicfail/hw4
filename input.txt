@@ -1,5 +1,8 @@
-a = 2 * 10
-bax = 0.0-1
-m = 0
-result = m + .5 + bax * 10 / a * a
-
+a = (10 - 8)/2;
+b = (a != 0) ? a-.12 : -a/4;
+a = b == b ? 10 : b;
+b = a <= a ? a / 2 : (a + a) * 1;
+a = b >= -b ? b : -b;
+b = a > b ? a : b * 2;
+a = a < b ? a : -a;
+result = a;

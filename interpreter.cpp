@@ -40,12 +40,52 @@ namespace ipr {
         auto var = assign->get_left ();
         assert (var->get_type () == type::VAR);
 
-        auto res = calculate_val (assign->get_right ());
+        auto res = calculate_tern (assign->get_right ());
         auto find_res = htable_.find (var->get_var ());
         if (find_res == htable_.end ())
             htable_.insert (std::make_pair (var->get_var (), res));
         else
             find_res->second = res;
+    }
+
+
+    double Interpreter::calculate_tern (const ast::IAST* tern) {
+        assert (tern);
+
+        if (tern->get_type () == type::OP && tern->get_op () == op::TERN) {
+            bool cond = calculate_cond (tern->get_left ());
+            auto right = tern->get_right ();
+            assert (right);
+            if (cond)
+                return calculate_val (right->get_left ());
+            else
+                return calculate_val (right->get_right ());
+
+        }
+        else
+            return calculate_val (tern);
+    }
+
+
+    bool Interpreter::calculate_cond (const ast::IAST* cond) {
+        assert (cond);
+
+        auto l = calculate_val (cond->get_left ());
+        auto r = calculate_val (cond->get_right ());
+
+        assert (cond->get_type () == type::OP);
+        auto oper = cond->get_op ();
+
+        using namespace op;
+        switch (oper) {
+            default       : printf ("\nunknown a comparison operator\n"); abort (); break;
+            case MORE     : return l > r;
+            case MOREOREQ : return l >= r;
+            case LESS     : return l < r;
+            case LESSOREQ : return l <= r;
+            case EQUAL    : return l == r;
+            case NOTEQUAL : return l != r;
+        }
     }
 
 
