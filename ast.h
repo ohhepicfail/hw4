@@ -26,9 +26,9 @@ namespace ast {
         virtual const IAST* get_left  () const = 0;
         virtual const IAST* get_right () const = 0;
 
-        virtual double       get_val  () const = 0;
-        virtual const char*  get_var  () const = 0;
-        virtual op::Operator get_op   () const = 0;
+        virtual double       get_val  () const { printf ("Can't return val. I'm IAST\n"); abort (); }
+        virtual const char*  get_var  () const { printf ("Can't return var. I'm IAST\n"); abort (); }
+        virtual op::Operator get_op   () const { printf ("Can't return  op. I'm IAST\n"); abort (); }
         virtual Type         get_type () const { return NAT; }
     };
 
@@ -44,12 +44,10 @@ namespace ast {
 
         void dprint (FILE* f) const override;
 
-        const IAST* get_left  () const override { assert (0); }
-        const IAST* get_right () const override { assert (0); }
+        const IAST* get_left  () const override { return nullptr;}
+        const IAST* get_right () const override { return nullptr; }
 
         double       get_val  () const override { return val_; }
-        const char*  get_var  () const override { assert (0); }
-        op::Operator get_op   () const override { assert (0); }
         Type         get_type () const override { return VAL; }
     };
 
@@ -65,12 +63,10 @@ namespace ast {
 
         void dprint (FILE* f) const override;
 
-        const IAST* get_left  () const override { assert (0); }
-        const IAST* get_right () const override { assert (0); }
+        const IAST* get_left  () const override { return nullptr; }
+        const IAST* get_right () const override { return nullptr; }
 
-        double       get_val  () const override { assert (0); }
         const char*  get_var  () const override { return var_; }
-        op::Operator get_op   () const override { assert (0); }
         Type         get_type () const override { return VAR; }
     };
 
@@ -96,8 +92,6 @@ namespace ast {
         const IAST* get_left  () const override { return left_;  }
         const IAST* get_right () const override { return right_; }
 
-        double       get_val  () const override { assert (0); }
-        const char*  get_var  () const override { assert (0); }
         op::Operator get_op   () const override { return op_; }
         Type         get_type () const override { return OP; }
     };
