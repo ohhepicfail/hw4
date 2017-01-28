@@ -114,19 +114,42 @@ namespace lexem {
             auto c = text_[cur_pos_];
 
             switch (c) {
-                case '+'  : op = ADD;    break;
-                case '-'  : op = SUB;    break;
-                case '*'  : op = MUL;    break;
-                case '/'  : op = DIV;    break;
-                case '='  : op = ASSIGN; break;
-                case '\0' : op = END;    break;
-                case '('  : op = OBRT;   break;
-                case ')'  : op = CBRT;   break;
-                case ';'  : op = SMCN;   break;
-                default   :              break;
+                case '+'  : op = ADD;      break;
+                case '-'  : op = SUB;      break;
+                case '*'  : op = MUL;      break;
+                case '/'  : op = DIV;      break;
+                case '='  : op = ASSIGN;   break;
+                case '\0' : op = END;      break;
+                case '('  : op = OBRT;     break;
+                case ')'  : op = CBRT;     break;
+                case ';'  : op = SMCN;     break;
+                case '>'  : op = MORE;     break;
+                case '<'  : op = LESS;     break;
+                case '?'  : op = QUESTION; break;
+                case '!'  : op = NOTEQUAL; break;
+                case ':'  : op = COLON;    break;
+                default   :                break;
             }
 
             cur_pos_++;
+            if (c == '>' || c == '<' || c == '!' || c == '=') {
+                if (cur_pos_ < tsize_) {
+                    auto next_c = text_[cur_pos_];
+                    if (next_c == '=') {
+                        cur_pos_++;
+                        switch (c) {
+                            default  :                break;
+                            case '>' : op = MOREOREQ; break;
+                            case '<' : op = LESSOREQ; break;
+                            case '=' : op = EQUAL;    break;
+                            case '!' : op = NOTEQUAL; break;
+                        }
+                    }
+                    else if (c == '!')
+                        op = NAP;
+                }
+            }
+
             if (op == NAP) {
                 printf ("\nunrecognized lexem \'%c\' at line %u, pos %u\n\n", c, line_, pos_);
                 abort ();
