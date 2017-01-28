@@ -10,10 +10,19 @@ namespace op {
         MUL,
         DIV,
         CODE,
+        TERN,
         END,
         OBRT,
         CBRT,
         SMCN,
+        QUESTION,
+        MORE,
+        MOREOREQ,
+        LESS,
+        LESSOREQ,
+        EQUAL,
+        NOTEQUAL,
+        COLON,
         NAP
     };
 
