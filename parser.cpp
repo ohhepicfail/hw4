@@ -7,29 +7,9 @@ namespace parser {
         if (root_)
             return root_->clone ();
 
-        root_ = assign_parse ();
-
-        Lexem l = lxr_.cur_lexem ();
-        while (l.get_type () == OP && l.get_op () == op::SMCN) {
-            lxr_.next_lexem ();
-            Lexem new_l = lxr_.cur_lexem ();
-            if (new_l.get_type () == OP && new_l.get_op () == op::END)
-                break;
-            l = new_l;
-            if (l.get_type () == OP && l.get_op () == op::SMCN)
-                continue;
-
-            IAST* right = assign_parse ();
-
-            root_ = new Op_AST (op::CODE, root_, right);
-            l = lxr_.cur_lexem ();
-        }
-
-        if (l.get_type () != OP || l.get_op () != op::SMCN) {
-            printf ("\nexpected ';' before line %u, pos %u\n\n", l.get_line (), l.get_pos ());
-            abort ();
-        }
-
+        root_ = code_parse ();
+        root_->print ("tree.dot");
+        auto l = lxr_.cur_lexem ();
         if (!root_) {
             printf ("\nsyntax error at line %u, pos %u\n\n", l.get_line (), l.get_pos ());
             abort ();
@@ -40,22 +20,74 @@ namespace parser {
     } 
 
 
+    IAST* Parser::code_parse () {
+        auto tree = if_parse ();
+
+        auto l = lxr_.cur_lexem ();
+        while (l.get_type () != OP || !(l.get_op () == op::END || l.get_op () == op::ENDIF)) {
+            if (l.get_type () == OP && l.get_op () == op::SMCN)
+                continue;
+
+            auto right = if_parse ();
+
+            tree = new Op_AST (op::CODE, tree, right);
+            l = lxr_.cur_lexem ();
+        }
+
+        return tree;
+    }
+
+
+    IAST* Parser::if_parse () {
+        auto lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != IF)
+            return assign_parse ();
+        lxr_.next_lexem ();
+
+        auto cond   = cond_parse ();
+        auto capt   = capture_parse ();
+        auto ifcode = code_parse ();
+
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != ENDIF) {
+            printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != SMCN) {
+            printf ("\nexpected ';' before line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        return new Op_AST (IF, cond, new Op_AST (CODE, capt, ifcode));
+    }
+
+
     IAST* Parser::assign_parse () {
         using namespace op;
-        IAST* left = var_parse ();
+        auto left = var_parse ();
 
-        Lexem lex = lxr_.cur_lexem ();
+        auto lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || lex.get_op () != ASSIGN) {
             printf ("\nexpected '=' at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
             abort ();
         }
         lxr_.next_lexem ();
 
-        IAST* right = tern_parse ();
+        auto right = tern_parse ();
         if (!right) {
             printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
             abort ();
         }
+
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != op::SMCN) {
+            printf ("\nexpected ';' before line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
 
         return new Op_AST (ASSIGN, left, right);
     }
@@ -63,15 +95,15 @@ namespace parser {
 
     IAST* Parser::tern_parse () {
         using namespace op;
-        IAST* cond = cond_parse ();
+        auto cond = cond_parse ();
 
-        Lexem lex = lxr_.cur_lexem ();
+        auto lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || lex.get_op () != QUESTION) {
-            IAST* residual_part = addsub_parse (cond);
+            auto residual_part = addsub_parse (cond);
             return residual_part;
         }
         lxr_.next_lexem ();
-        IAST* iftrue = addsub_parse ();
+        auto iftrue = addsub_parse ();
 
         lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || lex.get_op () != COLON) {
@@ -80,23 +112,23 @@ namespace parser {
         }
         lxr_.next_lexem ();
 
-        IAST* iffalse = addsub_parse ();
+        auto iffalse = addsub_parse ();
 
-        IAST* code = new Op_AST (CODE, iftrue, iffalse);
+        auto code = new Op_AST (CODE, iftrue, iffalse);
         return new Op_AST (TERN, cond, code);
     }
 
 
     IAST* Parser::cond_parse () {
         using namespace op;
-        Lexem lex = lxr_.cur_lexem ();
+        auto lex = lxr_.cur_lexem ();
         bool brackets = false;
         if (lex.get_type () == OP && lex.get_op () == OBRT) {
             lxr_.next_lexem ();
             brackets = true;
         }
 
-        IAST* left = addsub_parse ();
+        auto left = addsub_parse ();
         lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || ! (lex.get_op () == MORE
                                      || lex.get_op () == LESS
@@ -119,7 +151,7 @@ namespace parser {
 
         Operator cond = lex.get_op ();
         lxr_.next_lexem ();
-        IAST* right = addsub_parse ();
+        auto right = addsub_parse ();
 
         if (brackets) {
             lex = lxr_.cur_lexem ();
@@ -141,12 +173,12 @@ namespace parser {
         else
             left = muldiv_parse (left);
 
-        Lexem lex = lxr_.cur_lexem ();
+        auto lex = lxr_.cur_lexem ();
         while (lex.get_type () == OP && (lex.get_op () == ADD || lex.get_op () == SUB)) {
             Operator oper = lex.get_op ();
             lxr_.next_lexem ();
 
-            IAST* right = muldiv_parse ();
+            auto right = muldiv_parse ();
             if ((left == nullptr && oper != op::SUB) || right == nullptr) {
                 printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
                 abort ();
@@ -165,12 +197,12 @@ namespace parser {
         if (!left)
             left = bracket_parse ();
 
-        Lexem lex = lxr_.cur_lexem ();
+        auto lex = lxr_.cur_lexem ();
         while (lex.get_type () == OP && (lex.get_op () == MUL || lex.get_op () == DIV)) {
             Operator oper = lex.get_op ();
             lxr_.next_lexem ();
 
-            IAST* right = bracket_parse ();
+            auto right = bracket_parse ();
             if (left == nullptr || right == nullptr) {
                 printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
                 abort ();
@@ -185,7 +217,7 @@ namespace parser {
 
 
     IAST* Parser::bracket_parse () {
-        Lexem lex = lxr_.cur_lexem ();
+        auto lex = lxr_.cur_lexem ();
         IAST* ast = nullptr;
         if (lex.get_type () == OP && lex.get_op () == op::OBRT) {
             lxr_.next_lexem ();
@@ -218,18 +250,79 @@ namespace parser {
     }
 
 
-    IAST* Parser::val_parse () {
-        Lexem l = lxr_.cur_lexem ();
+    IAST* Parser::capture_parse () {
+        auto lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != CAPTURE) {
+            printf ("\nexpected 'capture' at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+
+        lxr_.next_lexem ();
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != OBRT) {
+            printf ("\nexpected '(' after 'capture' at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+
+        lxr_.next_lexem ();
+        lex = lxr_.cur_lexem ();
+        unsigned n = 256;
+        auto var_list = new char[n] ();
+        unsigned cur_n = 0;
+        while (lex.get_type () == VAR) {
+            auto var = lex.get_var ();
+            auto var_len = strlen (var);
+            if (n <= cur_n + var_len + 1) {
+                n *= 2;
+                auto new_list = new char[n];
+                std::copy (var_list, var_list + cur_n, new_list);
+                delete[] var_list;
+                var_list = new_list;
+            }
+
+            std::copy (var, var + var_len, var_list + cur_n);
+            cur_n += var_len;
+
+            lxr_.next_lexem ();
+            lex = lxr_.cur_lexem ();
+            if (lex.get_type () != OP || lex.get_op () != COMMA)
+                break;
+            else
+                var_list[cur_n++] = ',';
+
+            lxr_.next_lexem ();
+            lex = lxr_.cur_lexem ();
+        }
+
+        if (strlen (var_list) == 0) {
+            if (lex.get_type () == OP && lex.get_op () == MUL) {
+                lxr_.next_lexem ();
+                var_list[0] = '*';
+            }
+        }
+
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != CBRT) {
+            printf ("\nexpected ')' in capture block at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+
         lxr_.next_lexem ();
 
-        IAST* ast = new Val_AST (l.get_val ());
-        return ast;
+        return new Var_AST (var_list);
+    }
 
+
+    IAST* Parser::val_parse () {
+        auto l = lxr_.cur_lexem ();
+        lxr_.next_lexem ();
+
+        return new Val_AST (l.get_val ());
     }
 
 
     IAST* Parser::var_parse () {
-        Lexem l = lxr_.cur_lexem ();
+        auto l = lxr_.cur_lexem ();
         lxr_.next_lexem ();
 
         if (l.get_type () != VAR) {
@@ -242,9 +335,7 @@ namespace parser {
             abort ();
         }
 
-        IAST* ast = new Var_AST (l.get_var ());
-
-        return ast;
+        return new Var_AST (l.get_var ());
     }
 
 
