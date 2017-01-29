@@ -1,0 +1,2 @@
+result 4.000000
+tests/input/input8.txt
