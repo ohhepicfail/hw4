@@ -1,2 +1,2 @@
-result 1.000000
-tests/input/input9.txt
+result 2.000000
+tests/input/input7.txt
