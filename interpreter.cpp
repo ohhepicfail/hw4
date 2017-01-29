@@ -4,24 +4,7 @@
 namespace ipr {
 
     double Interpreter::run () {
-        std::list<const ast::IAST*> nodes;
-
-        const ast::IAST* cur = root_;
-        while (cur->get_type () == type::OP && cur->get_op () == op::CODE) {
-            nodes.push_back (cur);
-            cur = cur->get_left ();
-        }
-
-        if (!nodes.empty ())
-            calculate_assign (cur);
-        else
-            calculate_assign (root_);
-        while (!nodes.empty ()) {
-            cur = nodes.back ();
-            nodes.pop_back ();
-
-            calculate_assign (cur->get_right ());
-        }
+        calculate_code (root_);
 
         auto find_res = htable_.find ("result");
         if (find_res == htable_.end ()) {
@@ -29,6 +12,52 @@ namespace ipr {
             abort ();
         }
         return find_res->second;
+    }
+
+
+    void Interpreter::calculate_code (const ast::IAST* code) {
+        assert (code);
+
+        std::list<const ast::IAST*> nodes;
+
+        auto cur = code;
+        while (cur->get_type () == type::OP && cur->get_op () == op::CODE) {
+            nodes.push_back (cur);
+            cur = cur->get_left ();
+        }
+
+        if (!nodes.empty ())
+            calculate_if (cur);
+        else
+            calculate_if (code);
+        while (!nodes.empty ()) {
+            cur = nodes.back ();
+            nodes.pop_back ();
+
+            calculate_if (cur->get_right ());
+        }
+    }
+
+
+    void Interpreter::calculate_if (const ast::IAST* code) {
+        assert (code);
+
+        if (code->get_type () != type::OP || code->get_op () != op::IF)
+            calculate_assign (code);
+        else {
+            auto cond = calculate_cond (code->get_left ());
+            if (cond) {
+                auto old_htable = htable_;
+
+                auto right_if = code->get_right ();
+                assert (right_if);
+                assert (right_if->get_type () == type::OP && right_if->get_op () == op::CODE);
+
+                create_if_htable (right_if->get_left ());
+                calculate_code (right_if->get_right ());
+                update_htable (right_if->get_left (), old_htable);
+            }
+        }
     }
 
 
@@ -122,6 +151,86 @@ namespace ipr {
         }
 
         return res;
+    }
+
+
+    void Interpreter::update_htable (const ast::IAST* var_list, decltype (htable_) old_htable) {
+        assert (var_list);
+        assert (var_list->get_type () == VAR);
+
+        auto var_str = var_list->get_var ();
+        assert (var_str);
+
+        if (var_str[0] == '*') {
+            for (const auto& elem : htable_) {
+                auto find_res = old_htable.find (elem.first);
+                if (find_res != old_htable.end ())
+                    find_res->second = elem.second;
+            }
+        }
+        else {
+            unsigned begin = 0;
+            unsigned end   = 0;
+            while (var_str[end] != '\0') {
+                while (var_str[end] != ',' && var_str[end] != '\0')
+                    end++;
+
+                auto var = new char[end - begin + 1] ();
+                std::copy (var_str + begin, var_str + end, var);
+                end++;
+                begin = end;
+
+                auto find_res = htable_.find (var);
+                assert (find_res != htable_.end ());
+                auto find_res_old = old_htable.find(var);
+                if (find_res_old != old_htable.end ())
+                    find_res_old->second = find_res->second;
+                delete[] var;
+                if (var_str[end - 1] == '\0')
+                    break;
+            }
+        }
+
+        htable_ = old_htable;
+    }
+
+
+    void Interpreter::create_if_htable (const ast::IAST* var_list) {
+        assert (var_list);
+        assert (var_list->get_type () == VAR);
+
+        auto var_str = var_list->get_var ();
+        assert (var_str);
+        auto old_htable = htable_;
+        htable_.clear ();
+
+        unsigned begin = 0;
+        unsigned end   = 0;
+        while (var_str[end] != '\0') {
+            if (var_str[begin] == '*') {
+                htable_ = old_htable;
+                break;
+            }
+            while (var_str[end] != ',' && var_str[end] != '\0')
+                end++;
+
+            auto var = new char[end - begin + 1] ();
+            std::copy (var_str + begin, var_str + end, var);
+            end++;
+            begin = end;
+
+            auto find_res = old_htable.find (var);
+            if (find_res == old_htable.end ()) {
+                printf ("\nunknown var '%s' in capture block\n", var);
+                abort ();
+            }
+            else
+                htable_.insert (std::make_pair (var, find_res->second));
+            delete[] var;
+            if (var_str[end - 1] == '\0')
+                break;
+        }
+
     }
 
 

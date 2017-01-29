@@ -11,10 +11,15 @@ namespace ipr {
         ast::IAST* root_;
         std::unordered_map <std::string, double> htable_;
 
+        void   calculate_code   (const ast::IAST* code);
+        void   calculate_if     (const ast::IAST* code);
         void   calculate_assign (const ast::IAST* assign);
         double calculate_tern   (const ast::IAST* tern);
         bool   calculate_cond   (const ast::IAST* cond);
         double calculate_val    (const ast::IAST* val_root);
+
+        void update_htable    (const ast::IAST* var_list, decltype (htable_) old_htable);
+        void create_if_htable (const ast::IAST* var_list);
 
     public:
         explicit Interpreter (ast::IAST* prog) : root_ (prog) {}
