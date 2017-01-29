@@ -8,7 +8,7 @@ namespace parser {
             return root_->clone ();
 
         root_ = code_parse ();
-        root_->print ("tree.dot");
+
         auto l = lxr_.cur_lexem ();
         if (!root_) {
             printf ("\nsyntax error at line %u, pos %u\n\n", l.get_line (), l.get_pos ());
@@ -25,8 +25,11 @@ namespace parser {
 
         auto l = lxr_.cur_lexem ();
         while (l.get_type () != OP || !(l.get_op () == op::END || l.get_op () == op::ENDIF)) {
-            if (l.get_type () == OP && l.get_op () == op::SMCN)
+            if (l.get_type () == OP && l.get_op () == op::SMCN) {
+                lxr_.next_lexem ();
+                l = lxr_.cur_lexem ();
                 continue;
+            }
 
             auto right = if_parse ();
 
@@ -42,6 +45,7 @@ namespace parser {
         auto lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || lex.get_op () != IF)
             return assign_parse ();
+
         lxr_.next_lexem ();
 
         auto cond   = cond_parse ();
@@ -51,12 +55,6 @@ namespace parser {
         lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || lex.get_op () != ENDIF) {
             printf ("\nsyntax error at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
-            abort ();
-        }
-        lxr_.next_lexem ();
-        lex = lxr_.cur_lexem ();
-        if (lex.get_type () != OP || lex.get_op () != SMCN) {
-            printf ("\nexpected ';' before line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
             abort ();
         }
         lxr_.next_lexem ();
@@ -308,8 +306,9 @@ namespace parser {
         }
 
         lxr_.next_lexem ();
-
-        return new Var_AST (var_list);
+        auto ast = new Var_AST (var_list);
+        delete[] var_list;
+        return ast;
     }
 
 
