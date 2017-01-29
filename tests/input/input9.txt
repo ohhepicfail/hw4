@@ -1,0 +1,8 @@
+a = 1;
+b = 1;
+
+if (a == b) capture ()
+	a = 2;
+	b = 3;
+endif
+result = b;
