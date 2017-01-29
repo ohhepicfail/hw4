@@ -22,6 +22,10 @@ namespace op {
             case EQUAL      : return "==";      break;
             case NOTEQUAL   : return "!=";      break;
             case COLON      : return ":";       break;
+            case IF         : return "if";      break;
+            case ENDIF      : return "endif";   break;
+            case CAPTURE    : return "capture"; break;
+            case COMMA      : return ",";       break;
             case NAP        : return "NAP";     break;
             default         : return "DEFAULT"; break;
         }

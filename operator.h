@@ -23,6 +23,10 @@ namespace op {
         EQUAL,
         NOTEQUAL,
         COLON,
+        IF,
+        ENDIF,
+        CAPTURE,
+        COMMA,
         NAP
     };
 

@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include <cassert>
+#include <cstring>
 
 namespace lexem {
 
@@ -96,7 +97,7 @@ namespace lexem {
 
 
     void Lexer::skip_spaces () {
-        while (cur_pos_ < tsize_ && (text_[cur_pos_] == ' ' || text_[cur_pos_] == '\n')) {
+        while (cur_pos_ < tsize_ && (text_[cur_pos_] == ' ' || text_[cur_pos_] == '\n' || text_[cur_pos_] == '\t')) {
             if (text_[cur_pos_] == '\n')
                 increase_line ();
             cur_pos_++;
@@ -128,6 +129,7 @@ namespace lexem {
                 case '?'  : op = QUESTION; break;
                 case '!'  : op = NOTEQUAL; break;
                 case ':'  : op = COLON;    break;
+                case ','  : op = COMMA;    break;
                 default   :                break;
             }
 
@@ -195,7 +197,15 @@ namespace lexem {
         std::copy (text_ + begin, text_ + end - 1, tmp);
         cur_pos_ += end - begin - 1;
 
-        lexem_ = Lexem (tmp, line_, pos_);
+        if (!strcmp (tmp, string_eq (IF)))
+            lexem_ = Lexem (IF, line_, pos_);
+        else if (!strcmp (tmp, string_eq (ENDIF)))
+            lexem_ = Lexem (ENDIF, line_, pos_);
+        else if (!strcmp (tmp, string_eq (CAPTURE)))
+            lexem_ = Lexem (CAPTURE, line_, pos_);
+        else
+            lexem_ = Lexem (tmp, line_, pos_); 
+
         delete[] tmp;
         increase_pos ();
     }
