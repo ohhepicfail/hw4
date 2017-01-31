@@ -27,6 +27,9 @@ namespace op {
         ENDIF,
         CAPTURE,
         COMMA,
+        WHILE,
+        OBRACE,
+        CBRACE,
         NAP
     };
 

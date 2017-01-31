@@ -26,6 +26,9 @@ namespace op {
             case ENDIF      : return "endif";   break;
             case CAPTURE    : return "capture"; break;
             case COMMA      : return ",";       break;
+            case WHILE      : return "while";   break;
+            case OBRACE     : return "{";       break;
+            case CBRACE     : return "}";       break;
             case NAP        : return "NAP";     break;
             default         : return "DEFAULT"; break;
         }

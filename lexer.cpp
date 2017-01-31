@@ -130,6 +130,8 @@ namespace lexem {
                 case '!'  : op = NOTEQUAL; break;
                 case ':'  : op = COLON;    break;
                 case ','  : op = COMMA;    break;
+                case '{'  : op = OBRACE;   break;
+                case '}'  : op = CBRACE;   break;
                 default   :                break;
             }
 
@@ -203,6 +205,8 @@ namespace lexem {
             lexem_ = Lexem (ENDIF, line_, pos_);
         else if (!strcmp (tmp, string_eq (CAPTURE)))
             lexem_ = Lexem (CAPTURE, line_, pos_);
+        else if (!strcmp (tmp, string_eq (WHILE)))
+            lexem_ = Lexem (WHILE, line_, pos_);
         else
             lexem_ = Lexem (tmp, line_, pos_); 
 
