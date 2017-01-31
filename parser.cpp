@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <cassert>
+#include <list>
 
 namespace parser {
 
@@ -16,28 +17,58 @@ namespace parser {
         }   
 
         printf ("\tParser: the end of the program was reached at line %u, pos %u\n", l.get_line (), l.get_pos ());
+        root_->print ("tree.dot");
         return root_->clone ();
     } 
 
 
     IAST* Parser::code_parse () {
-        auto tree = if_parse ();
+        auto tree = while_parse ();
 
         auto l = lxr_.cur_lexem ();
-        while (l.get_type () != OP || !(l.get_op () == op::END || l.get_op () == op::ENDIF)) {
+        while (l.get_type () != OP || !(l.get_op () == op::END || l.get_op () == op::ENDIF || l.get_op () == op::CBRACE)) {
             if (l.get_type () == OP && l.get_op () == op::SMCN) {
                 lxr_.next_lexem ();
                 l = lxr_.cur_lexem ();
                 continue;
             }
 
-            auto right = if_parse ();
+            auto right = while_parse ();
 
             tree = new Op_AST (op::CODE, tree, right);
             l = lxr_.cur_lexem ();
         }
 
         return tree;
+    }
+
+
+    IAST* Parser::while_parse () {
+        auto lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != WHILE)
+            return if_parse ();
+
+        lxr_.next_lexem ();
+        auto cond   = cond_parse ();
+        auto capt   = capture_parse (cond);
+
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != OBRACE) {
+            printf ("\nexpected '{' at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        auto whilecode = code_parse ();
+
+        lex = lxr_.cur_lexem ();
+        if (lex.get_type () != OP || lex.get_op () != CBRACE) {
+            printf ("\nexpected '}' at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        return new Op_AST (WHILE, cond, new Op_AST (CODE, capt, whilecode));
     }
 
 
@@ -248,10 +279,19 @@ namespace parser {
     }
 
 
-    IAST* Parser::capture_parse () {
+    IAST* Parser::capture_parse (const IAST* cond_vars) {
         auto lex = lxr_.cur_lexem ();
         if (lex.get_type () != OP || lex.get_op () != CAPTURE)
             return new Var_AST ("*");
+
+        decltype (lex.get_var ()) var1 = nullptr;
+        decltype (lex.get_var ()) var2 = nullptr;
+        auto need_to_clean = false;
+        if (cond_vars) {
+            var1 = get_all_subtree_var (cond_vars->get_left ());
+            var2 = get_all_subtree_var (cond_vars->get_right ());
+            need_to_clean = true;
+        }
 
         lxr_.next_lexem ();
         lex = lxr_.cur_lexem ();
@@ -266,8 +306,18 @@ namespace parser {
         auto var_list = new char[n] ();
         unsigned cur_n = 0;
         while (lex.get_type () == VAR) {
-            auto var = lex.get_var ();
-            auto var_len = strlen (var);
+            if (!var1 && var2) {
+                delete[] var1;
+                var1 = var2;
+                var2 = nullptr;
+            }
+            else if (!var2) {
+                if (need_to_clean)
+                    delete[] var1;
+                need_to_clean = false;
+                var1 = lex.get_var ();
+            }
+            auto var_len = strlen (var1);
             if (n <= cur_n + var_len + 1) {
                 n *= 2;
                 auto new_list = new char[n];
@@ -276,18 +326,21 @@ namespace parser {
                 var_list = new_list;
             }
 
-            std::copy (var, var + var_len, var_list + cur_n);
+            std::copy (var1, var1 + var_len, var_list + cur_n);
             cur_n += var_len;
 
-            lxr_.next_lexem ();
-            lex = lxr_.cur_lexem ();
-            if (lex.get_type () != OP || lex.get_op () != COMMA)
-                break;
-            else
-                var_list[cur_n++] = ',';
+            if (!need_to_clean) {
+                lxr_.next_lexem ();
+                lex = lxr_.cur_lexem ();
+                if (lex.get_type () != OP || lex.get_op () != COMMA)
+                    break;
+                else
+                    var_list[cur_n++] = ',';
 
-            lxr_.next_lexem ();
-            lex = lxr_.cur_lexem ();
+                lxr_.next_lexem ();
+                lex = lxr_.cur_lexem ();
+            }
+            var1 = nullptr;
         }
 
         if (strlen (var_list) == 0) {
@@ -333,6 +386,62 @@ namespace parser {
         }
 
         return new Var_AST (l.get_var ());
+    }
+
+
+    char* Parser::get_all_subtree_var (const IAST* subtree) {
+        assert (subtree);
+
+        std::list<decltype (subtree)> nodes;
+
+        auto cur = subtree;
+        while (cur->get_type () == type::OP) {
+            nodes.push_back (cur);
+            cur = cur->get_left ();
+        }
+
+        decltype (subtree->get_var ()) var = nullptr;
+        if (!nodes.empty () && cur->get_type () == VAR)
+            var = cur->get_var ();
+        else if (nodes.empty () && subtree->get_type () == VAR)
+            var = subtree->get_var ();
+
+        unsigned n = 256;
+        auto var_list = new char[n] ();
+        unsigned cur_n = 0;
+        while (!nodes.empty ()) {
+            if (!var) {
+                cur = nodes.back ();
+                cur = cur->get_right ();
+                nodes.pop_back ();
+                while (cur->get_type () == type::OP) {
+                    nodes.push_back (cur);
+                    cur = cur->get_left ();
+                }
+
+                if (cur->get_type () == VAR)
+                    var = cur->get_var ();
+                else
+                    continue;
+            }
+
+            auto var_len = strlen (var);
+            if (n <= cur_n + var_len + 1) {
+                n *= 2;
+                auto new_list = new char[n];
+                std::copy (var_list, var_list + cur_n, new_list);
+                delete[] var_list;
+                var_list = new_list;
+            }
+
+            std::copy (var, var + var_len, var_list + cur_n);
+            cur_n += var_len;
+            var_list[cur_n++] = ',';
+
+            var = nullptr;
+        }
+
+        return var_list;
     }
 
 

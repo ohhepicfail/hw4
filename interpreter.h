@@ -12,6 +12,7 @@ namespace ipr {
         std::unordered_map <std::string, double> htable_;
 
         void   calculate_code   (const ast::IAST* code);
+        void   calculate_while  (const ast::IAST* code);
         void   calculate_if     (const ast::IAST* code);
         void   calculate_assign (const ast::IAST* assign);
         double calculate_tern   (const ast::IAST* tern);

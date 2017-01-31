@@ -27,14 +27,38 @@ namespace ipr {
         }
 
         if (!nodes.empty ())
-            calculate_if (cur);
+            calculate_while (cur);
         else
-            calculate_if (code);
+            calculate_while (code);
         while (!nodes.empty ()) {
             cur = nodes.back ();
             nodes.pop_back ();
 
-            calculate_if (cur->get_right ());
+            calculate_while (cur->get_right ());
+        }
+    }
+
+
+    void Interpreter::calculate_while (const ast::IAST* code) {
+        assert (code);
+
+        if (code->get_type () != type::OP || code->get_op () != op::WHILE)
+            calculate_if (code);
+        else {
+            auto cond = calculate_cond (code->get_left ());
+
+            auto old_htable = htable_;
+
+            auto right_while = code->get_right ();
+            assert (right_while);
+            assert (right_while->get_type () == type::OP && right_while->get_op () == op::CODE);
+
+            create_if_htable (right_while->get_left ());
+            while (cond) {
+                calculate_code (right_while->get_right ());
+                cond = calculate_cond (code->get_left ());
+            }
+            update_htable (right_while->get_left (), old_htable);
         }
     }
 
@@ -98,6 +122,9 @@ namespace ipr {
 
     bool Interpreter::calculate_cond (const ast::IAST* cond) {
         assert (cond);
+
+        if (cond->get_type () != OP) 
+            return calculate_val (cond);
 
         auto l = calculate_val (cond->get_left ());
         auto r = calculate_val (cond->get_right ());

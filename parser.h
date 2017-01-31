@@ -17,6 +17,7 @@ namespace parser {
         IAST* root_ = nullptr;
 
         IAST* code_parse ();
+        IAST* while_parse ();
         IAST* if_parse ();
         IAST* assign_parse ();
         IAST* tern_parse ();
@@ -24,10 +25,12 @@ namespace parser {
         IAST* addsub_parse (IAST* left = nullptr);
         IAST* muldiv_parse (IAST* left = nullptr);
         IAST* bracket_parse ();
-        IAST* capture_parse ();
+        IAST* capture_parse (const IAST* cond_vars = nullptr);
         IAST* vlvr_parse ();
         IAST* val_parse ();
         IAST* var_parse ();
+
+        char* get_all_subtree_var (const IAST* subtree);
 
     public:
         explicit Parser (const char* filename) : lxr_ (filename) {}
