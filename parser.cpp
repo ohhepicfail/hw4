@@ -250,10 +250,8 @@ namespace parser {
 
     IAST* Parser::capture_parse () {
         auto lex = lxr_.cur_lexem ();
-        if (lex.get_type () != OP || lex.get_op () != CAPTURE) {
-            printf ("\nexpected 'capture' at line %u, pos %u\n\n", lex.get_line (), lex.get_pos ());
-            abort ();
-        }
+        if (lex.get_type () != OP || lex.get_op () != CAPTURE)
+            return new Var_AST ("*");
 
         lxr_.next_lexem ();
         lex = lxr_.cur_lexem ();
