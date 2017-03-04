@@ -3,11 +3,17 @@
 
 namespace ipr {
 
-    double Interpreter::run () {
-        calculate_code (root_);
+    struct Program_data {
+        std::stack <const ast::IAST*> prog_;
+        std::unordered_map <std::string, double> var_htable_;
+    };
 
-        auto find_res = htable_.find ("result");
-        if (find_res == htable_.end ()) {
+
+    double Interpreter::run () {
+        calculate ();
+
+        auto find_res = var_value_.find ("result");
+        if (find_res == var_value_.end ()) {
             printf ("No variable 'result'\n");
             abort ();
         }
@@ -15,108 +21,115 @@ namespace ipr {
     }
 
 
-    void Interpreter::calculate_code (const ast::IAST* code) {
-        assert (code);
-
-        std::list<const ast::IAST*> nodes;
-
-        auto cur = code;
-        while (cur->get_type () == type::OP && cur->get_op () == op::CODE) {
-            nodes.push_back (cur);
-            cur = cur->get_left ();
-        }
-
-        if (!nodes.empty ())
-            calculate_while (cur);
-        else
-            calculate_while (code);
-        while (!nodes.empty ()) {
-            cur = nodes.back ();
-            nodes.pop_back ();
-
-            calculate_while (cur->get_right ());
-        }
-    }
-
-
-    void Interpreter::calculate_while (const ast::IAST* code) {
-        assert (code);
-
-        if (code->get_type () != type::OP || code->get_op () != op::WHILE)
-            calculate_if (code);
-        else {
-            auto cond = calculate_cond (code->get_left ());
-
-            auto old_htable = htable_;
-
-            auto right_while = code->get_right ();
-            assert (right_while);
-            assert (right_while->get_type () == type::OP && right_while->get_op () == op::CODE);
-
-            create_if_htable (right_while->get_left ());
-            while (cond) {
-                calculate_code (right_while->get_right ());
-                cond = calculate_cond (code->get_left ());
+    void Interpreter::calculate () {
+        std::stack <Program_data> scope;
+        
+        const ast::IAST* cur_node = root_;
+        for (;;) {
+            if (cur_node->get_type () != type::OP) {
+                printf ("Statement has no effect\n");
+                abort ();
             }
-            update_htable (right_while->get_left (), old_htable);
-        }
-    }
+            switch (cur_node->get_op ()) {
+
+                default:
+                    assert (0);
+                break;
 
 
-    void Interpreter::calculate_if (const ast::IAST* code) {
-        assert (code);
+                case op::CODE: {
+                    auto r = cur_node->get_right ();
+                    auto l = cur_node->get_left ();
+                    assert (r);
+                    assert (l);
 
-        if (code->get_type () != type::OP || code->get_op () != op::IF)
-            calculate_assign (code);
-        else {
-            auto cond = calculate_cond (code->get_left ());
-            if (cond) {
-                auto old_htable = htable_;
+                    prog_nodes_.push (r);
+                    prog_nodes_.push (l);
+                } break;
 
-                auto right_if = code->get_right ();
-                assert (right_if);
-                assert (right_if->get_type () == type::OP && right_if->get_op () == op::CODE);
 
-                create_if_htable (right_if->get_left ());
-                calculate_code (right_if->get_right ());
-                update_htable (right_if->get_left (), old_htable);
+                case op::ASSIGN: {              // assign + tern
+                    auto var = cur_node->get_left ();
+                    assert (var);
+                    assert (var->get_type () == type::VAR);
+
+                    auto r = cur_node->get_right ();
+                    decltype (calculate_val (r)) res;
+
+                    if (r->get_type () == type::OP && r->get_op () == op::TERN) {
+                        cur_node = r->get_right ();
+                        assert (cur_node);
+
+                        if (calculate_cond (r->get_left ()))
+                            res = calculate_val (cur_node->get_left ());
+                        else
+                            res = calculate_val (cur_node->get_right ());      
+                    }
+                    else
+                        res = calculate_val (r);
+
+                    auto find_res = var_value_.find (var->get_var ());
+                    if (find_res == var_value_.end ())
+                        var_value_.insert (std::make_pair (var->get_var (), res));
+                    else
+                        find_res->second = res;
+                } break;
+
+
+                case op::WHILE:
+                case op::IF: {
+                    if (!calculate_cond (cur_node->get_left ()))
+                        break;
+
+                    prog_nodes_.push (cur_node);        // we need var_list for update_htable () when the scope 
+                                                        // will be decreased
+                    cur_node = cur_node->get_right ();
+                    assert (cur_node);
+
+                    scope.push (Program_data {prog_nodes_, var_value_});
+
+                    std::stack <const ast::IAST*> ().swap (prog_nodes_);    // clear stack
+                    assert (prog_nodes_.empty ());
+
+                    create_htable (cur_node->get_left ());
+                    cur_node = cur_node->get_right ();
+                    continue;
+                } break;
+
             }
-        }
-    }
 
+            for (;;) {
+                if (prog_nodes_.empty ()) {
+                    if (scope.empty ())
+                        return;
 
-    void Interpreter::calculate_assign (const ast::IAST* assign) {
-        assert (assign);
-        assert (assign->get_type () == type::OP);
-        assert (assign->get_op () == op::ASSIGN);
+                    auto tmp_prog_nodes = scope.top ().prog_;
+                    cur_node = tmp_prog_nodes.top ();
+                    tmp_prog_nodes.pop ();
 
-        auto var = assign->get_left ();
-        assert (var->get_type () == type::VAR);
+                    if (cur_node->get_op () == op::WHILE) 
+                        if (calculate_cond (cur_node->get_left ())) {
+                            cur_node = cur_node->get_right ()->get_right ();
+                            break;
+                        }
 
-        auto res = calculate_tern (assign->get_right ());
-        auto find_res = htable_.find (var->get_var ());
-        if (find_res == htable_.end ())
-            htable_.insert (std::make_pair (var->get_var (), res));
-        else
-            find_res->second = res;
-    }
+                    prog_nodes_ = tmp_prog_nodes;
 
-
-    double Interpreter::calculate_tern (const ast::IAST* tern) {
-        assert (tern);
-
-        if (tern->get_type () == type::OP && tern->get_op () == op::TERN) {
-            bool cond = calculate_cond (tern->get_left ());
-            auto right = tern->get_right ();
-            assert (right);
-            if (cond)
-                return calculate_val (right->get_left ());
-            else
-                return calculate_val (right->get_right ());
+                    cur_node = cur_node->get_right ()->get_left ();        // var_list for update_htable ()
+                    update_htable (cur_node, scope.top ().var_htable_);
+                    scope.pop ();
+                }
+           
+                if (prog_nodes_.empty ())
+                    continue;
+                cur_node = prog_nodes_.top ();
+                prog_nodes_.pop ();
+                break;
+            }
+            
 
         }
-        else
-            return calculate_val (tern);
+
     }
 
 
@@ -134,7 +147,7 @@ namespace ipr {
 
         using namespace op;
         switch (oper) {
-            default       : printf ("\nunknown a comparison operator\n"); abort (); break;
+            default       : printf ("\nunknown comparison operator\n"); abort (); break;
             case MORE     : return l > r;
             case MOREOREQ : return l >= r;
             case LESS     : return l < r;
@@ -156,8 +169,8 @@ namespace ipr {
             && val_root->get_left () == nullptr)
             return -calculate_val (val_root->get_right ());
         if (val_root->get_type () == type::VAR) {
-            auto find_res = htable_.find (val_root->get_var ());
-            if (find_res == htable_.end ()) {
+            auto find_res = var_value_.find (val_root->get_var ());
+            if (find_res == var_value_.end ()) {
                 printf ("unknown var %s\n", val_root->get_var ());
                 abort ();
             }
@@ -181,7 +194,7 @@ namespace ipr {
     }
 
 
-    void Interpreter::update_htable (const ast::IAST* var_list, decltype (htable_) old_htable) {
+    void Interpreter::update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable) {
         assert (var_list);
         assert (var_list->get_type () == VAR);
 
@@ -189,7 +202,7 @@ namespace ipr {
         assert (var_str);
 
         if (var_str[0] == '*') {
-            for (const auto& elem : htable_) {
+            for (const auto& elem : var_value_) {
                 auto find_res = old_htable.find (elem.first);
                 if (find_res != old_htable.end ())
                     find_res->second = elem.second;
@@ -207,8 +220,8 @@ namespace ipr {
                 end++;
                 begin = end;
 
-                auto find_res = htable_.find (var);
-                assert (find_res != htable_.end ());
+                auto find_res = var_value_.find (var);
+                assert (find_res != var_value_.end ());
                 auto find_res_old = old_htable.find(var);
                 if (find_res_old != old_htable.end ())
                     find_res_old->second = find_res->second;
@@ -218,24 +231,24 @@ namespace ipr {
             }
         }
 
-        htable_ = old_htable;
+        var_value_ = old_htable;
     }
 
 
-    void Interpreter::create_if_htable (const ast::IAST* var_list) {
+    void Interpreter::create_htable (const ast::IAST* var_list) {
         assert (var_list);
         assert (var_list->get_type () == VAR);
 
         auto var_str = var_list->get_var ();
         assert (var_str);
-        auto old_htable = htable_;
-        htable_.clear ();
+        auto old_htable = var_value_;
+        var_value_.clear ();
 
         unsigned begin = 0;
         unsigned end   = 0;
         while (var_str[end] != '\0') {
             if (var_str[begin] == '*') {
-                htable_ = old_htable;
+                var_value_ = old_htable;
                 break;
             }
             while (var_str[end] != ',' && var_str[end] != '\0')
@@ -252,7 +265,7 @@ namespace ipr {
                 abort ();
             }
             else
-                htable_.insert (std::make_pair (var, find_res->second));
+                var_value_.insert (std::make_pair (var, find_res->second));
             delete[] var;
             if (var_str[end - 1] == '\0')
                 break;
@@ -279,7 +292,8 @@ namespace ipr {
         root_ = that.root_;
         that.root_ = nullptr;
 
-        htable_ = std::move (that.htable_);
+        prog_nodes_ = std::move (that.prog_nodes_);
+        var_value_  = std::move (that.var_value_);
 
         return *this;
     }
