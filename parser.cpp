@@ -273,6 +273,10 @@ namespace parser {
             res = val_parse ();
         else if (l.get_type () == VAR)
             res = var_parse ();
+        else if (l.get_type () == OP && l.get_op () == op::SUB)     // try to add negation
+            return new Val_AST (0);
+        else 
+            assert (0);
 
         return res;
     }
