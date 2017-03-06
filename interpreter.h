@@ -17,6 +17,8 @@ namespace ipr {
         double calculate_val  (const ast::IAST* val_root);
         bool   calculate_cond (const ast::IAST* cond);
 
+        double get_value (const ast::IAST* node);
+
         void create_htable (const ast::IAST* var_list);
         void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
 

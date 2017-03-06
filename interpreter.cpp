@@ -2,14 +2,16 @@
 #include <list>
 
 namespace ipr {
-
-    struct Program_data {
-        std::stack <const ast::IAST*> prog_;
-        std::unordered_map <std::string, double> var_htable_;
+    struct Node_info {
+        const ast::IAST*  node_;
+        bool need_to_visit_;
     };
+    
+    std::stack<Node_info> build_expr_stack (const ast::IAST*  node);
 
 
     double Interpreter::run () {
+        root_->print ("tree.dot");
         calculate ();
 
         auto find_res = var_value_.find ("result");
@@ -22,6 +24,10 @@ namespace ipr {
 
 
     void Interpreter::calculate () {
+        struct Program_data {
+            std::stack <const ast::IAST*> prog_;
+            std::unordered_map <std::string, double> var_htable_;
+        };
         std::stack <Program_data> scope;
         
         const ast::IAST* cur_node = root_;
@@ -158,41 +164,120 @@ namespace ipr {
     }
 
 
-    double Interpreter::calculate_val (const ast::IAST* val_root) {
-        assert (val_root);
-        assert (val_root->get_type () != type::NAT);
+    std::stack<Node_info> build_expr_stack (const ast::IAST* node) {
+        assert (node);
 
-        if (val_root->get_type () == type::VAL)
-            return val_root->get_val ();
-        if (val_root->get_type () == type::OP
-            && val_root->get_op () == op::SUB
-            && val_root->get_left () == nullptr)
-            return -calculate_val (val_root->get_right ());
-        if (val_root->get_type () == type::VAR) {
-            auto find_res = var_value_.find (val_root->get_var ());
+        std::stack <Node_info> pref_notation;
+
+        while (node->get_type () == type::OP) {
+            auto r = node->get_right ();
+            auto l = node->get_left ();
+            assert (l);
+            assert (r);
+
+            pref_notation.push ({node, false});
+            if (r->get_type () == type::OP)
+                pref_notation.push ({r, true});
+            else if (r->get_type () == type::VAR || r->get_type () == type::VAL)
+                pref_notation.push ({r, false});
+            else 
+                assert (0);
+
+            node = l;
+        }
+
+        pref_notation.push ({node, false});
+
+        return pref_notation;
+    }
+
+
+    double Interpreter::get_value (const ast::IAST* node) {
+        assert (node);
+        double res = 0;
+        if (node->get_type () == type::VAL)
+            res = node->get_val ();
+        else if (node->get_type () == type::VAR) {
+            auto find_res = var_value_.find (node->get_var ());
             if (find_res == var_value_.end ()) {
-                printf ("unknown var %s\n", val_root->get_var ());
+                printf ("unknown var %s\n", node->get_var ());
                 abort ();
             }
-
-            return find_res->second;
+            res = find_res->second;
         }
-
-        double left  = calculate_val (val_root->get_left  ());
-        double right = calculate_val (val_root->get_right ());
-        double res = 0;
-        using namespace op;
-        switch (val_root->get_op ()) {
-            default  : assert (0); break;
-            case ADD : res = left + right; break;
-            case SUB : res = left - right; break;
-            case MUL : res = left * right; break;
-            case DIV : res = left / right; break;
-        }
+        else 
+            assert (0);
 
         return res;
     }
 
+
+    double Interpreter::calculate_val (const ast::IAST* node) {
+        assert (node);
+        assert (node->get_type () != type::NAT);
+
+        struct Expr {
+            std::stack<Node_info> pref_notation_;  // see polish prefix notation
+            double value_;              
+        };
+        std::stack<Expr> less_priority;     // need it when we calculate right subtree
+
+        std::stack <Node_info> cur_pref_notation = build_expr_stack (node);
+        double right = 0;
+        double left  = get_value (cur_pref_notation.top ().node_);
+        cur_pref_notation.pop ();
+        bool visit = false;
+
+        for (;;) {
+            assert (node);
+
+            if (cur_pref_notation.empty ()) {
+                if (less_priority.empty ())
+                    break;
+                
+                right = left;
+                cur_pref_notation = less_priority.top ().pref_notation_;
+                left = less_priority.top ().value_;
+                less_priority.pop ();
+            }
+
+            node  = cur_pref_notation.top ().node_;
+            visit = cur_pref_notation.top ().need_to_visit_;
+            cur_pref_notation.pop ();
+
+            switch (node->get_type ()) {
+                default: abort ();
+                break;
+
+                case type::OP:
+                    if (!visit) {
+                        using namespace op;
+                        switch (node->get_op ()) {
+                            default  : assert (0); break;
+                            case ADD : left += right; break;
+                            case SUB : left -= right; break;
+                            case MUL : left *= right; break;
+                            case DIV : left /= right; break;
+                        }
+                    }
+                    else {
+                        less_priority.push ({cur_pref_notation, left});
+                        cur_pref_notation = build_expr_stack (node);
+                        left = get_value (cur_pref_notation.top().node_);
+                        cur_pref_notation.pop ();
+                    }
+                break;
+
+                case type::VAL:
+                case type::VAR:
+                    right = get_value (node);
+                break;
+            }
+        }
+
+        return left;
+    }
+    
 
     void Interpreter::update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable) {
         assert (var_list);
