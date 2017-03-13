@@ -29,7 +29,7 @@ namespace lexem {
 
 
     Lexer::Lexer (const Lexer& that) {
-        lexem_ = that.cur_lexem ();
+        lexem_ = that.get_cur_lexem ();
         if (that.text_) {
             text_ = new char[that.tsize_];
             std::copy (that.text_, that.text_ + that.tsize_, text_);
@@ -79,7 +79,7 @@ namespace lexem {
     }
 
 
-    Lexem Lexer::cur_lexem () const {
+    Lexem Lexer::get_cur_lexem () const {
         return lexem_;
     }
 

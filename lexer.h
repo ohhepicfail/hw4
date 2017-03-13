@@ -32,7 +32,7 @@ namespace lexem {
         Lexer& operator= (const Lexer& that);
         Lexer& operator= (Lexer&& that);
 
-        Lexem cur_lexem () const;
+        Lexem get_cur_lexem () const;
         void next_lexem ();
     };
 
