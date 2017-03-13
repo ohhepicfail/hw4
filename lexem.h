@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstring>
 #include <algorithm>
+#include <cstdio>
 
 namespace lexem {
     using namespace type;
@@ -26,6 +27,25 @@ namespace lexem {
 
         unsigned get_line () const { return line_; }
         unsigned get_pos  () const { return pos_ ; }
+
+        bool is_closing_operator ();
+        bool is_semicolon ();
+        bool is_while ();
+        bool is_open_brace ();
+        bool is_close_brace ();
+        bool is_if ();
+        bool is_endif ();
+        bool is_assign ();
+        bool is_question ();
+        bool is_colon ();
+        bool is_open_bracket ();
+        bool is_close_bracket ();
+        bool is_comparison_operator ();
+        bool is_add ();
+        bool is_sub ();
+        bool is_mul ();
+        bool is_div ();
+        bool is_capture ();
 
         Type get_type () const { return type_; }
         double get_val () const {
