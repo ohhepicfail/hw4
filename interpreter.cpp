@@ -217,6 +217,7 @@ namespace ipr {
         assert (node->get_type () != type::NAT);
 
         struct Expr {
+            Expr (std::stack<Node_info> pref_notation, double value) : pref_notation_ (pref_notation), value_ (value) {}
             std::stack<Node_info> pref_notation_;  // see polish prefix notation
             double value_;              
         };
@@ -261,7 +262,7 @@ namespace ipr {
                         }
                     }
                     else {
-                        less_priority.push ({cur_pref_notation, left});
+                        less_priority.push (Expr (cur_pref_notation, left));
                         cur_pref_notation = build_expr_stack (node);
                         left = get_value (cur_pref_notation.top().node_);
                         cur_pref_notation.pop ();
