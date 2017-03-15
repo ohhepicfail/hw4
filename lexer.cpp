@@ -3,6 +3,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstring>
+#include <iostream>
 
 namespace lexem {
 
@@ -24,8 +25,8 @@ namespace lexem {
 
 
     Lexer::Lexer (const Lexer& that) {
-        lexem_ = that.get_cur_lexem ();
-        text_ = that.text_;
+        lexem_   = that.get_cur_lexem ();
+        text_    = that.text_;
         cur_pos_ = that.cur_pos_;
         pos_     = that.pos_;
         line_    = that.line_;
@@ -37,8 +38,7 @@ namespace lexem {
                                 , cur_pos_ (that.cur_pos_)
                                 , line_ (that.line_)
                                 , pos_ (that.pos_) 
-    {
-    }
+    {}
 
 
     Lexer& Lexer::operator= (const Lexer& that) {
@@ -51,8 +51,8 @@ namespace lexem {
 
 
     Lexer& Lexer::operator= (Lexer&& that) {
-        lexem_ = that.lexem_;
-        text_  = std::move (that.text_);
+        lexem_   = that.lexem_;
+        text_    = std::move (that.text_);
         cur_pos_ = that.cur_pos_;
         line_    = that.line_;
         pos_     = that.pos_;
@@ -88,7 +88,6 @@ namespace lexem {
 
 
     void Lexer::set_op_lexem () {
-
         using namespace op;
         Operator op = NAP;
         if (cur_pos_ >= text_.length ())
@@ -177,24 +176,24 @@ namespace lexem {
             end++;
         end++;
 
-        char* tmp = new char[end - begin] ();
-        std::copy (text_.begin () + begin, text_.begin () + end - 1, tmp);
+        std::string tmp;
+        tmp.reserve (end - begin);
+        tmp.assign (text_, begin, end - begin - 1);
         cur_pos_ += end - begin - 1;
 
-        if (!strcmp (tmp, string_eq (IF)))
+        if (tmp == string_eq (IF))
             lexem_ = Lexem (IF, line_, pos_);
-        else if (!strcmp (tmp, string_eq (ENDIF)))
+        else if (tmp == string_eq (ENDIF))
             lexem_ = Lexem (ENDIF, line_, pos_);
-        else if (!strcmp (tmp, string_eq (CAPTURE)))
+        else if (tmp == string_eq (CAPTURE))
             lexem_ = Lexem (CAPTURE, line_, pos_);
-        else if (!strcmp (tmp, string_eq (WHILE)))
+        else if (tmp == string_eq (WHILE))
             lexem_ = Lexem (WHILE, line_, pos_);
-        else if (!strcmp (tmp, string_eq (FUNCTION)))
+        else if (tmp == string_eq (FUNCTION))
             lexem_ = Lexem (FUNCTION, line_, pos_);
         else
-            lexem_ = Lexem (tmp, line_, pos_); 
+            lexem_ = Lexem (tmp.c_str (), line_, pos_); 
 
-        delete[] tmp;
         increase_pos ();
     }
 
