@@ -164,11 +164,11 @@ namespace ipr {
     }
 
 
-    std::stack<Node_info> build_expr_stack (const ast::IAST* node) {
+    void build_expr_stack (const ast::IAST* node, std::stack<Node_info>& pref_notation) {
         assert (node);
-
-        std::stack <Node_info> pref_notation;
-
+    
+        std::stack<Node_info> ().swap (pref_notation);
+        
         while (node->get_type () == type::OP) {
             auto r = node->get_right ();
             auto l = node->get_left ();
@@ -187,8 +187,6 @@ namespace ipr {
         }
 
         pref_notation.push ({node, false});
-
-        return pref_notation;
     }
 
 
@@ -223,7 +221,8 @@ namespace ipr {
         };
         std::stack<Expr> less_priority;     // need it when we calculate right subtree
 
-        std::stack <Node_info> cur_pref_notation = build_expr_stack (node);
+        std::stack <Node_info> cur_pref_notation;
+        build_expr_stack (node, cur_pref_notation);
         double right = 0;
         double left  = get_value (cur_pref_notation.top ().node_);
         cur_pref_notation.pop ();
@@ -263,7 +262,7 @@ namespace ipr {
                     }
                     else {
                         less_priority.push (Expr (cur_pref_notation, left));
-                        cur_pref_notation = build_expr_stack (node);
+                        build_expr_stack (node, cur_pref_notation);
                         left = get_value (cur_pref_notation.top().node_);
                         cur_pref_notation.pop ();
                     }
