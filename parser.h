@@ -1,6 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include <string>
 #include "lexer.h"
 #include "ast.h"
 
@@ -30,7 +31,7 @@ namespace parser {
         IAST* val_parse ();
         IAST* var_parse ();
 
-        char* get_all_subtree_var (const IAST* subtree);
+        void get_all_subtree_var (const IAST* subtree, std::string& res_var);
 
     public:
         explicit Parser (const char* filename) : lxr_ (filename) {}

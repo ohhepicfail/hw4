@@ -282,13 +282,11 @@ namespace parser {
         if (!cur_lexem.is_capture ())
             return new Var_AST ("*");
 
-        decltype (cur_lexem.get_var ()) var1 = nullptr;
-        decltype (cur_lexem.get_var ()) var2 = nullptr;
-        auto need_to_clean = false;
+        std::string vars_from_cond1;
+        std::string vars_from_cond2;
         if (cond_vars) {
-            var1 = get_all_subtree_var (cond_vars->get_left ());
-            var2 = get_all_subtree_var (cond_vars->get_right ());
-            need_to_clean = true;
+            get_all_subtree_var (cond_vars->get_left (),  vars_from_cond1);
+            get_all_subtree_var (cond_vars->get_right (), vars_from_cond2);
         }
 
         lxr_.next_lexem ();
@@ -300,52 +298,29 @@ namespace parser {
 
         lxr_.next_lexem ();
         cur_lexem = lxr_.get_cur_lexem ();
-        unsigned n = 256;
-        auto var_list = new char[n] ();
-        unsigned cur_n = 0;
+
+        std::string var_list;
         while (cur_lexem.get_type () == VAR) {
-            if (!var1 && var2) {
-                delete[] var1;
-                var1 = var2;
-                var2 = nullptr;
-            }
-            else if (!var2) {
-                if (need_to_clean)
-                    delete[] var1;
-                need_to_clean = false;
-                var1 = cur_lexem.get_var ();
-            }
-            auto var_len = strlen (var1);
-            if (n <= cur_n + var_len + 1) {
-                n *= 2;
-                auto new_list = new char[n];
-                std::copy (var_list, var_list + cur_n, new_list);
-                delete[] var_list;
-                var_list = new_list;
-            }
+            std::string cur_var = cur_lexem.get_var ();
+            var_list += cur_var + ',';
+            lxr_.next_lexem ();
+            cur_lexem = lxr_.get_cur_lexem ();
+            if (!cur_lexem.is_comma ())
+                break;
 
-            std::copy (var1, var1 + var_len, var_list + cur_n);
-            cur_n += var_len;
-
-            if (!need_to_clean) {
-                lxr_.next_lexem ();
-                cur_lexem = lxr_.get_cur_lexem ();
-                if (cur_lexem.get_type () != OP || cur_lexem.get_op () != COMMA)
-                    break;
-                else
-                    var_list[cur_n++] = ',';
-
-                lxr_.next_lexem ();
-                cur_lexem = lxr_.get_cur_lexem ();
-            }
-            var1 = nullptr;
+            lxr_.next_lexem ();
+            cur_lexem = lxr_.get_cur_lexem ();
         }
 
-        if (strlen (var_list) == 0) {
+        if (var_list.empty ()) {
             if (cur_lexem.is_mul ()) {
                 lxr_.next_lexem ();
-                var_list[0] = '*';
+                var_list = '*';
             }
+        }
+        else {
+            var_list += vars_from_cond1 + vars_from_cond2;
+            var_list.erase (var_list.end () - 1);        //  erase last ','
         }
 
         cur_lexem = lxr_.get_cur_lexem ();
@@ -355,8 +330,7 @@ namespace parser {
         }
 
         lxr_.next_lexem ();
-        auto ast = new Var_AST (var_list);
-        delete[] var_list;
+        auto ast = new Var_AST (var_list.c_str ());
         return ast;
     }
 
@@ -387,59 +361,37 @@ namespace parser {
     }
 
 
-    char* Parser::get_all_subtree_var (const IAST* subtree) {
+    void Parser::get_all_subtree_var (const IAST* subtree, std::string& res_var) {
         assert (subtree);
 
         std::list<decltype (subtree)> nodes;
 
         auto cur = subtree;
         while (cur->get_type () == type::OP) {
-            nodes.push_back (cur);
+            nodes.push_back (cur->get_right ());
             cur = cur->get_left ();
         }
+        nodes.push_back (cur);
 
-        decltype (subtree->get_var ()) var = nullptr;
-        if (!nodes.empty () && cur->get_type () == VAR)
-            var = cur->get_var ();
-        else if (nodes.empty () && subtree->get_type () == VAR)
-            var = subtree->get_var ();
-
-        unsigned n = 256;
-        auto var_list = new char[n] ();
-        unsigned cur_n = 0;
         while (!nodes.empty ()) {
-            if (!var) {
-                cur = nodes.back ();
-                cur = cur->get_right ();
-                nodes.pop_back ();
-                while (cur->get_type () == type::OP) {
-                    nodes.push_back (cur);
-                    cur = cur->get_left ();
-                }
+            std::string var;
 
-                if (cur->get_type () == VAR)
-                    var = cur->get_var ();
-                else
-                    continue;
+            cur = nodes.back ();
+            nodes.pop_back ();
+
+            while (cur->get_type () == type::OP) {
+                nodes.push_back (cur->get_right ());
+                cur = cur->get_left ();
             }
 
-            auto var_len = strlen (var);
-            if (n <= cur_n + var_len + 1) {
-                n *= 2;
-                auto new_list = new char[n];
-                std::copy (var_list, var_list + cur_n, new_list);
-                delete[] var_list;
-                var_list = new_list;
-            }
+            if (cur->get_type () == VAR)
+                var = cur->get_var ();
+            else
+                continue;
 
-            std::copy (var, var + var_len, var_list + cur_n);
-            cur_n += var_len;
-            var_list[cur_n++] = ',';
 
-            var = nullptr;
+            res_var += var + ',';
         }
-
-        return var_list;
     }
 
 
