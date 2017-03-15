@@ -4,15 +4,15 @@
 #include "lexem.h"
 #include <cstdio>
 #include <cctype>
+#include <string>
 
 namespace lexem {
 
     class Lexer {
     private:
         Lexem lexem_;
-        char* text_ = nullptr;
+        std::string text_;
         unsigned cur_pos_ = 0;
-        unsigned tsize_ = 0;
 
         unsigned line_ = 1;
         unsigned pos_ = 1;
@@ -26,7 +26,7 @@ namespace lexem {
         void set_op_lexem ();
     public:
         explicit Lexer (const char* filename);
-        ~Lexer ();
+        ~Lexer () {}
         Lexer (const Lexer& that);
         Lexer (Lexer&& that);
         Lexer& operator= (const Lexer& that);

@@ -1,62 +1,48 @@
 #include "lexer.h"
 #include <cassert>
+#include <fstream>
+#include <sstream>
 #include <cstring>
 
 namespace lexem {
 
     Lexer::Lexer (const char* filename) {
-        auto f = fopen (filename, "rb");
-        assert (f);
+        std::ifstream ifs (filename);
+        if (!ifs.is_open ()) {
+            printf ("lexer can't open the file\n");
+            abort ();
+        }
 
-        fseek (f, 0, SEEK_END);
-        unsigned long sz = ftell (f);
-        fseek (f, 0, SEEK_SET);
+        std::stringstream buffer;
+        buffer << ifs.rdbuf ();
+        text_ = buffer.str ();    
 
-        text_ = new char[sz];
-        tsize_ = sz;
-
-        assert (sz == fread (text_, sizeof (char), sz, f));
-
-        fclose (f);
+        ifs.close ();
 
         next_lexem ();
     }
 
 
-    Lexer::~Lexer () {
-        delete[] text_;
-    }
-
-
     Lexer::Lexer (const Lexer& that) {
         lexem_ = that.get_cur_lexem ();
-        if (that.text_) {
-            text_ = new char[that.tsize_];
-            std::copy (that.text_, that.text_ + that.tsize_, text_);
-            cur_pos_ = that.cur_pos_;
-            tsize_   = that.tsize_;
-            pos_     = that.pos_;
-            line_    = that.line_;
-        }
+        text_ = that.text_;
+        cur_pos_ = that.cur_pos_;
+        pos_     = that.pos_;
+        line_    = that.line_;
     }
 
 
     Lexer::Lexer (Lexer&& that) : lexem_ (that.lexem_)
-                                , text_ (that.text_)
+                                , text_ (std::move (that.text_))
                                 , cur_pos_ (that.cur_pos_)
-                                , tsize_ (that.tsize_)
                                 , line_ (that.line_)
                                 , pos_ (that.pos_) 
     {
-        that.text_    = nullptr;
     }
 
 
     Lexer& Lexer::operator= (const Lexer& that) {
         if (this != &that) {
-            delete[] text_;
-            text_  = nullptr;
-
             Lexer tmp (that);
             *this = std::move (tmp);
         }
@@ -65,13 +51,9 @@ namespace lexem {
 
 
     Lexer& Lexer::operator= (Lexer&& that) {
-        delete[] text_;
         lexem_ = that.lexem_;
-        text_  = that.text_;
-        that.text_  = nullptr;
-
+        text_  = std::move (that.text_);
         cur_pos_ = that.cur_pos_;
-        tsize_   = that.tsize_;
         line_    = that.line_;
         pos_     = that.pos_;
 
@@ -86,9 +68,9 @@ namespace lexem {
 
     void Lexer::next_lexem () {
         skip_spaces ();
-        if (cur_pos_ < tsize_ && isalpha (text_[cur_pos_]))
+        if (cur_pos_ < text_.length () && isalpha (text_[cur_pos_]))
             set_var_lexem ();
-        else if (cur_pos_ < tsize_ && (isdigit (text_[cur_pos_]) || text_[cur_pos_] == '.'))
+        else if (cur_pos_ < text_.length () && (isdigit (text_[cur_pos_]) || text_[cur_pos_] == '.'))
             set_val_lexem ();
         else
             set_op_lexem ();
@@ -97,7 +79,7 @@ namespace lexem {
 
 
     void Lexer::skip_spaces () {
-        while (cur_pos_ < tsize_ && (text_[cur_pos_] == ' ' || text_[cur_pos_] == '\n' || text_[cur_pos_] == '\t')) {
+        while (cur_pos_ < text_.length () && (text_[cur_pos_] == ' ' || text_[cur_pos_] == '\n' || text_[cur_pos_] == '\t')) {
             if (text_[cur_pos_] == '\n')
                 increase_line ();
             cur_pos_++;
@@ -109,7 +91,7 @@ namespace lexem {
 
         using namespace op;
         Operator op = NAP;
-        if (cur_pos_ >= tsize_)
+        if (cur_pos_ >= text_.length ())
             op = END;
         else {
             auto c = text_[cur_pos_];
@@ -137,7 +119,7 @@ namespace lexem {
 
             cur_pos_++;
             if (c == '>' || c == '<' || c == '!' || c == '=') {
-                if (cur_pos_ < tsize_) {
+                if (cur_pos_ < text_.length ()) {
                     auto next_c = text_[cur_pos_];
                     if (next_c == '=') {
                         cur_pos_++;
@@ -196,7 +178,7 @@ namespace lexem {
         end++;
 
         char* tmp = new char[end - begin] ();
-        std::copy (text_ + begin, text_ + end - 1, tmp);
+        std::copy (text_.begin () + begin, text_.begin () + end - 1, tmp);
         cur_pos_ += end - begin - 1;
 
         if (!strcmp (tmp, string_eq (IF)))
@@ -207,6 +189,8 @@ namespace lexem {
             lexem_ = Lexem (CAPTURE, line_, pos_);
         else if (!strcmp (tmp, string_eq (WHILE)))
             lexem_ = Lexem (WHILE, line_, pos_);
+        else if (!strcmp (tmp, string_eq (FUNCTION)))
+            lexem_ = Lexem (FUNCTION, line_, pos_);
         else
             lexem_ = Lexem (tmp, line_, pos_); 
 
