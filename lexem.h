@@ -8,6 +8,7 @@
 #include <cstring>
 #include <algorithm>
 #include <cstdio>
+#include <string>
 
 namespace lexem {
     using namespace type;
@@ -15,11 +16,12 @@ namespace lexem {
 
     class Lexem {
     public:
-        Lexem () : type_ (NAT), line_ (0), pos_ (0) {}
-        Lexem (Operator op, unsigned line, unsigned pos) : type_ (OP) , op_ (op)  , line_ (line), pos_ (pos) {}
-        Lexem (double val , unsigned line, unsigned pos) : type_ (VAL), val_ (val), line_ (line), pos_ (pos) {}
-        Lexem (char* var  , unsigned line, unsigned pos);
-        ~Lexem () { if (type_ == VAR) delete[] var_; }
+        Lexem () : type_ (NAT), var_ (), line_ (0), pos_ (0) {}
+        Lexem (Operator op           , unsigned line, unsigned pos) : type_ (OP) , op_ (op)  , line_ (line), pos_ (pos) {}
+        Lexem (double val            , unsigned line, unsigned pos) : type_ (VAL), val_ (val), line_ (line), pos_ (pos) {}
+        Lexem (const char* var       , unsigned line, unsigned pos) : type_ (VAR), var_ (var), line_ (line), pos_ (pos) {} 
+        Lexem (const std::string& var, unsigned line, unsigned pos) : type_ (VAR), var_ (var), line_ (line), pos_ (pos) {} 
+        ~Lexem () {}
         Lexem (const Lexem& that);
         Lexem (Lexem&& that);
         Lexem& operator= (const Lexem& that);
@@ -70,7 +72,7 @@ namespace lexem {
                 abort ();
             } 
             else 
-                return var_; 
+                return var_.c_str ();           // todo: const char* -> std::string
         }
 
     private:
@@ -78,8 +80,8 @@ namespace lexem {
         union {
             Operator op_;
             double val_;
-            char*  var_;
         };
+        std::string var_;       // there is a trouble with std::string in anonimous union :(
 
         unsigned line_;
         unsigned pos_;
