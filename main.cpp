@@ -54,7 +54,7 @@ void test_lexer (int argc, char* argv[]) {
     Lexem tmp = lr.get_cur_lexem ();
     while (1) {
         if (tmp.get_type () == VAR)
-            printf ("var\t%s\n", tmp.get_var ());
+            printf ("var\t%s\n", tmp.get_var ().c_str ());
         if (tmp.get_type () == VAL)
             printf ("val\t%lf\n", tmp.get_val ()); 
         if (tmp.get_type () == OP) {
