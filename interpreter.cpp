@@ -1,5 +1,6 @@
 #include "interpreter.h"
 #include <list>
+#include <string>
 
 namespace ipr {
     struct Node_info {
@@ -198,7 +199,7 @@ namespace ipr {
         else if (node->get_type () == type::VAR) {
             auto find_res = var_value_.find (node->get_var ());
             if (find_res == var_value_.end ()) {
-                printf ("unknown var %s\n", node->get_var ());
+                printf ("unknown var %s\n", node->get_var ().c_str ());
                 abort ();
             }
             res = find_res->second;
@@ -284,7 +285,6 @@ namespace ipr {
         assert (var_list->get_type () == VAR);
 
         auto var_str = var_list->get_var ();
-        assert (var_str);
 
         if (var_str[0] == '*') {
             for (const auto& elem : var_value_) {
@@ -296,12 +296,11 @@ namespace ipr {
         else {
             unsigned begin = 0;
             unsigned end   = 0;
-            while (var_str[end] != '\0') {
+            while (var_str.length () > end) {
                 while (var_str[end] != ',' && var_str[end] != '\0')
                     end++;
 
-                auto var = new char[end - begin + 1] ();
-                std::copy (var_str + begin, var_str + end, var);
+                std::string var (var_str, begin, end - begin);
                 end++;
                 begin = end;
 
@@ -310,9 +309,6 @@ namespace ipr {
                 auto find_res_old = old_htable.find(var);
                 if (find_res_old != old_htable.end ())
                     find_res_old->second = find_res->second;
-                delete[] var;
-                if (var_str[end - 1] == '\0')
-                    break;
             }
         }
 
@@ -325,35 +321,30 @@ namespace ipr {
         assert (var_list->get_type () == VAR);
 
         auto var_str = var_list->get_var ();
-        assert (var_str);
         auto old_htable = var_value_;
         var_value_.clear ();
 
         unsigned begin = 0;
         unsigned end   = 0;
-        while (var_str[end] != '\0') {
+        while (var_str.length () > end) {
             if (var_str[begin] == '*') {
                 var_value_ = old_htable;
                 break;
             }
-            while (var_str[end] != ',' && var_str[end] != '\0')
+            while (end < var_str.length () && var_str[end] != ',')
                 end++;
 
-            auto var = new char[end - begin + 1] ();
-            std::copy (var_str + begin, var_str + end, var);
+            std::string var (var_str, begin, end - begin);
             end++;
             begin = end;
 
             auto find_res = old_htable.find (var);
             if (find_res == old_htable.end ()) {
-                printf ("\nunknown var '%s' in capture block\n", var);
+                printf ("\nunknown var '%s' in capture block\n", var.c_str ());
                 abort ();
             }
             else
                 var_value_.insert (std::make_pair (var, find_res->second));
-            delete[] var;
-            if (var_str[end - 1] == '\0')
-                break;
         }
 
     }
