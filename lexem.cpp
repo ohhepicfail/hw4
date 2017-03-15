@@ -149,6 +149,12 @@ namespace lexem {
         return false;
     }
 
+    
+    bool Lexem::is_comma () {
+        if (type_ == type::OP && op_ == op::COMMA)
+            return true;
+        return false;
+    }
 
     bool Lexem::is_add () {
         if (type_ == type::OP && op_ == op::ADD)

@@ -43,6 +43,7 @@ namespace lexem {
         bool is_open_bracket ();
         bool is_close_bracket ();
         bool is_comparison_operator ();
+        bool is_comma ();
         bool is_add ();
         bool is_sub ();
         bool is_mul ();
@@ -66,13 +67,13 @@ namespace lexem {
             else 
                 return op_; 
         }
-        const char* get_var () const {
+        const std::string& get_var () const {
             if (type_ != VAR) {
                 printf ("\nError in Lexem. I can't return var, because type != VAR\n"); 
                 abort ();
             } 
             else 
-                return var_.c_str ();           // todo: const char* -> std::string
+                return var_;
         }
 
     private:
