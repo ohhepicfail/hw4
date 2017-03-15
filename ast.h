@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstdio>
+#include <string>
 #include "operator.h"
 #include "type.h"
 
@@ -26,10 +27,10 @@ namespace ast {
         virtual const IAST* get_left  () const = 0;
         virtual const IAST* get_right () const = 0;
 
-        virtual double       get_val  () const { printf ("Can't return val. I'm IAST\n"); abort (); }
-        virtual const char*  get_var  () const { printf ("Can't return var. I'm IAST\n"); abort (); }
-        virtual op::Operator get_op   () const { printf ("Can't return  op. I'm IAST\n"); abort (); }
-        virtual Type         get_type () const { return NAT; }
+        virtual double              get_val  () const { printf ("Can't return val. I'm IAST\n"); abort (); }
+        virtual const std::string&  get_var  () const { printf ("Can't return var. I'm IAST\n"); abort (); }
+        virtual op::Operator        get_op   () const { printf ("Can't return  op. I'm IAST\n"); abort (); }
+        virtual Type                get_type () const { return NAT; }
     };
 
 
@@ -54,11 +55,12 @@ namespace ast {
 
     class Var_AST final: public IAST {
     private:
-        char* var_ = nullptr;
+        std::string var_;
     public:
-        explicit Var_AST (const char* var);
-        ~Var_AST () override { delete[] var_; }
-        Var_AST (const Var_AST& that);
+        explicit Var_AST (const char* var)        : var_ (var) {}
+        explicit Var_AST (const std::string& var) : var_ (var) {}
+        ~Var_AST () override {}
+        Var_AST (const Var_AST& that) : var_ (that.var_) {}
         IAST* clone () const override { return new Var_AST (*this); } 
 
         void dprint (FILE* f) const override;
@@ -66,8 +68,8 @@ namespace ast {
         const IAST* get_left  () const override { return nullptr; }
         const IAST* get_right () const override { return nullptr; }
 
-        const char*  get_var  () const override { return var_; }
-        Type         get_type () const override { return VAR; }
+        const std::string&  get_var  () const override { return var_; }
+        Type                get_type () const override { return VAR; }
     };
 
 

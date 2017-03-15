@@ -51,28 +51,10 @@ namespace ast {
  *          
  */
 
-    Var_AST::Var_AST (const char* var) { 
-        auto n = strlen (var); 
-        n++;
-        var_  = new char [n];  
-        std::copy (var, var + n, var_);
-    }
-
-
-    Var_AST::Var_AST (const Var_AST& that) {
-        if (that.var_) {
-            auto n = strlen (that.var_); 
-            n++;
-            var_  = new char [n];  
-            std::copy (that.var_, that.var_ + n, var_);
-        }
-    }
-
-
     void Var_AST::dprint (FILE* f) const {
         assert (f);
 
-        fprintf (f, "\t%lu [label = \"var\\n%s\"]\n", reinterpret_cast<unsigned long> (this), var_);
+        fprintf (f, "\t%lu [label = \"var\\n%s\"]\n", reinterpret_cast<unsigned long> (this), var_.c_str ());
     }
 
 
