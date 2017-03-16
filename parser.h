@@ -18,6 +18,7 @@ namespace parser {
         IAST* root_ = nullptr;
 
         IAST* code_parse ();
+        IAST* function_parse ();
         IAST* while_parse ();
         IAST* if_parse ();
         IAST* assign_parse ();
@@ -27,6 +28,7 @@ namespace parser {
         IAST* muldiv_parse (IAST* left = nullptr);
         IAST* bracket_parse ();
         IAST* capture_parse (const IAST* cond_vars = nullptr);
+        IAST* func_param_parse ();
         IAST* vlvr_parse ();
         IAST* val_parse ();
         IAST* var_parse ();

@@ -17,12 +17,13 @@ namespace parser {
         }   
 
         printf ("\tParser: the end of the program was reached at line %u, pos %u\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+        root_->print ("tree.dot");
         return root_->clone ();
     } 
 
 
     IAST* Parser::code_parse () {
-        auto tree = while_parse ();
+        auto tree = function_parse ();
 
         auto cur_lexem = lxr_.get_cur_lexem ();
         while (!cur_lexem.is_closing_operator ()) {
@@ -32,13 +33,42 @@ namespace parser {
                 continue;
             }
 
-            auto right = while_parse ();
+            auto right = function_parse ();
 
             tree = new Op_AST (op::CODE, tree, right);
             cur_lexem = lxr_.get_cur_lexem ();
         }
 
         return tree;
+    }
+
+
+    IAST* Parser::function_parse () {
+        auto cur_lexem = lxr_.get_cur_lexem ();
+        if (!cur_lexem.is_function ())
+            return while_parse (); 
+
+        lxr_.next_lexem ();
+        auto func_name = var_parse ();
+        auto params = func_param_parse ();
+        
+        cur_lexem = lxr_.get_cur_lexem ();
+        if (!cur_lexem.is_open_brace ()) {
+            printf ("\nexpected '{' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        auto func_code = code_parse ();
+
+        cur_lexem = lxr_.get_cur_lexem ();
+        if (!cur_lexem.is_close_brace ()) {
+            printf ("\nexpected '}' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        return new Op_AST (FUNCTION, func_name, new Op_AST (CODE, params, func_code));
     }
 
 
@@ -294,8 +324,14 @@ namespace parser {
         get_var_list (var_list);
         vars_from_cond1 += vars_from_cond2 + var_list;
 
-        auto ast = new Var_AST (vars_from_cond1);
-        return ast;
+        return new Var_AST (vars_from_cond1);
+    }
+
+
+    IAST* Parser::func_param_parse () {
+        std::string var_list;
+        get_var_list (var_list);
+        return new Var_AST (var_list);
     }
 
 
