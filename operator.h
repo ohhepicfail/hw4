@@ -30,6 +30,7 @@ namespace op {
         WHILE,
         OBRACE,
         CBRACE,
+        FUNCTION,
         NAP
     };
 

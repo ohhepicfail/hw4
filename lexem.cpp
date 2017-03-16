@@ -189,4 +189,11 @@ namespace lexem {
             return true;
         return false;
     }
+
+    
+    bool Lexem::is_function () {
+        if (type_ == type::OP && op_ == op::FUNCTION)
+            return true;
+        return false;
+    }
 }

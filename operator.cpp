@@ -29,6 +29,7 @@ namespace op {
             case WHILE      : return "while";   break;
             case OBRACE     : return "{";       break;
             case CBRACE     : return "}";       break;
+            case FUNCTION   : return "function";break;
             case NAP        : return "NAP";     break;
             default         : return "DEFAULT"; break;
         }

@@ -49,6 +49,7 @@ namespace lexem {
         bool is_mul ();
         bool is_div ();
         bool is_capture ();
+        bool is_function ();
 
         Type get_type () const { return type_; }
         double get_val () const {
