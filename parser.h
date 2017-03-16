@@ -32,6 +32,7 @@ namespace parser {
         IAST* var_parse ();
 
         void get_all_subtree_var (const IAST* subtree, std::string& res_var);
+        void get_var_list (std::string& res_var_list);
 
     public:
         explicit Parser (const char* filename) : lxr_ (filename) {}

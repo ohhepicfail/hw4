@@ -288,49 +288,13 @@ namespace parser {
             get_all_subtree_var (cond_vars->get_left (),  vars_from_cond1);
             get_all_subtree_var (cond_vars->get_right (), vars_from_cond2);
         }
-
         lxr_.next_lexem ();
-        cur_lexem = lxr_.get_cur_lexem ();
-        if (!cur_lexem.is_open_bracket ()) {
-            printf ("\nexpected '(' after 'capture' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
-            abort ();
-        }
-
-        lxr_.next_lexem ();
-        cur_lexem = lxr_.get_cur_lexem ();
-
+        
         std::string var_list;
-        while (cur_lexem.get_type () == VAR) {
-            std::string cur_var = cur_lexem.get_var ();
-            var_list += cur_var + ',';
-            lxr_.next_lexem ();
-            cur_lexem = lxr_.get_cur_lexem ();
-            if (!cur_lexem.is_comma ())
-                break;
+        get_var_list (var_list);
+        vars_from_cond1 += vars_from_cond2 + var_list;
 
-            lxr_.next_lexem ();
-            cur_lexem = lxr_.get_cur_lexem ();
-        }
-
-        if (var_list.empty ()) {
-            if (cur_lexem.is_mul ()) {
-                lxr_.next_lexem ();
-                var_list = '*';
-            }
-        }
-        else {
-            var_list += vars_from_cond1 + vars_from_cond2;
-            var_list.erase (var_list.end () - 1);        //  erase last ','
-        }
-
-        cur_lexem = lxr_.get_cur_lexem ();
-        if (!cur_lexem.is_close_bracket ()) {
-            printf ("\nexpected ')' in capture block at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
-            abort ();
-        }
-
-        lxr_.next_lexem ();
-        auto ast = new Var_AST (var_list.c_str ());
+        auto ast = new Var_AST (vars_from_cond1);
         return ast;
     }
 
@@ -392,6 +356,47 @@ namespace parser {
 
             res_var += var + ',';
         }
+    }
+
+
+    void Parser::get_var_list (std::string& res_var_list) {
+        auto cur_lexem = lxr_.get_cur_lexem ();
+        if (!cur_lexem.is_open_bracket ()) {
+            printf ("\nexpected '(' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort ();
+        }
+
+        lxr_.next_lexem ();
+        cur_lexem = lxr_.get_cur_lexem ();
+
+        while (cur_lexem.get_type () == VAR) {
+            std::string cur_var = cur_lexem.get_var ();
+            res_var_list += cur_var + ',';
+            lxr_.next_lexem ();
+            cur_lexem = lxr_.get_cur_lexem ();
+            if (!cur_lexem.is_comma ())
+                break;
+
+            lxr_.next_lexem ();
+            cur_lexem = lxr_.get_cur_lexem ();
+        }
+
+        if (res_var_list.empty ()) {
+            if (cur_lexem.is_mul ()) {
+                lxr_.next_lexem ();
+                res_var_list = '*';
+            }
+        }
+        else
+            res_var_list.erase (res_var_list.end () - 1);        //  erase last ','
+
+        cur_lexem = lxr_.get_cur_lexem ();
+        if (!cur_lexem.is_close_bracket ()) {
+            printf ("\nexpected ')' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort ();
+        }
+
+        lxr_.next_lexem ();
     }
 
 
