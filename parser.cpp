@@ -4,11 +4,154 @@
 
 namespace parser {
 
-    IAST* Parser::build () {
-        if (root_)
-            return root_->clone ();
+    unsigned Parser::get_deep_change () {
+        auto tmp = cur_deep_diff_;
+        cur_deep_diff_ = 0;
+        return tmp;
+    }
 
-        root_ = code_parse ();
+    bool Parser::deep_decreased () {
+        auto tmp = deep_decreased_;
+        deep_decreased_ = false;
+        return tmp;
+    }
+    
+    void Parser::repeat ()
+    {
+        assert (!repetitive_.empty ());
+        work_on_cond_op (repetitive_.top (), op::WHILE);
+        repetitive_.pop ();
+    }
+
+    void Parser::skip ()
+    {
+        if (parts_.empty ())
+            return;
+        auto tmp = parts_.top ();
+        parts_.pop ();
+        while (1)
+        {
+            if (parts_.empty ())
+                return;
+            if (tmp->get_type () == VAL || tmp->get_type () == VAR ||
+                tmp->get_op () != op::ENDWHILE  || tmp->get_op () != op::ENDIF || tmp->get_op ())
+            {
+                tmp = parts_.top ();
+                parts_.pop ();
+                continue;
+            }
+            else
+                return;
+        }
+    }
+
+    void Parser::work_on_cond_op (const ast::IAST *node, op::Operator op_type)
+    {
+        assert(op_type == IF || op_type == WHILE);
+        if (op_type == WHILE)
+        {
+            assert (node);
+            repetitive_.push (node);
+            parts_.push (new Op_AST (op::ENDWHILE, nullptr, nullptr));
+        }
+        else
+            parts_.push (new Op_AST (op::ENDIF, nullptr, nullptr));
+        
+        auto tmp = node->get_right ()->get_right ();
+        auto type = tmp->get_op ();
+        bool broken = false;
+        while (!broken)
+        {
+            switch (type)
+            {
+                case CODE:  parts_.push (tmp->get_right ());
+                            tmp = tmp->get_left ();
+                            type = tmp->get_op ();
+                            break;
+
+                default:    parts_.push (tmp);
+                            broken = true;
+                            break;
+            }
+        } 
+        parts_.push (node->get_right ()->get_left ());
+        parts_.push (node->get_left ()); 
+    }
+
+    IAST const* Parser::get_next ()
+    {
+        if (parts_.empty ())
+        {
+            build();
+            if (last_part_ == nullptr)
+                return nullptr;
+            auto cur_type = last_part_->get_op ();
+            switch (cur_type)
+            {
+                case ASSIGN:    parts_.push (last_part_->get_right ());
+                                parts_.push (last_part_->get_left ());
+                                return last_part_;
+
+                case IF:        work_on_cond_op (last_part_, op::IF); 
+                                return last_part_;
+
+                case WHILE:     work_on_cond_op (last_part_, op::WHILE);
+                                return last_part_;
+            
+                default:        assert(!"expect IF, WHILE or ASSIGN here");
+            }
+        }
+        else
+        {
+            auto tmp = parts_.top ();
+            parts_.pop ();
+            auto general_type = tmp->get_type ();
+            if (general_type == Type::VAR || general_type == Type::VAL)
+                return tmp;
+            auto cur_type = tmp->get_op ();
+            switch (cur_type)
+            {
+                case ASSIGN:    parts_.push (tmp->get_right ());
+                                parts_.push (tmp->get_left ());
+                                return tmp;
+
+                case IF:        work_on_cond_op (tmp, op::IF);
+                                return tmp;
+
+                case WHILE:     work_on_cond_op (tmp, op::WHILE);
+                                return tmp;
+                
+                case ENDWHILE...ENDIF:  
+                                cur_deep_diff_ = 1;
+                                deep_decreased_ = true;
+                                if (status_ == INTERPRETER)
+                                    return tmp;
+                                delete tmp;
+                                while (!parts_.empty ())
+                                {
+                                    tmp = parts_.top ();
+                                    cur_type = tmp->get_op ();
+                                    if (cur_type == ENDIF || cur_type == ENDWHILE /*|| cur_type == ENDFUNC*/)
+                                    {
+                                        delete tmp;
+                                        ++cur_deep_diff_;
+                                        parts_.pop ();
+                                    }
+                                    else
+                                        break;//return tmp;
+                                }
+                                return get_next ();
+
+                default:        return tmp;
+
+            }
+        }
+    }
+
+    void Parser::build () {
+        auto new_part = code_parse ();
+        if (new_part != nullptr)
+            root_ = new_part;
 
         auto cur_lexem = lxr_.get_cur_lexem ();
         if (!root_) {
@@ -16,30 +159,47 @@ namespace parser {
             abort ();
         }   
 
-        printf ("\tParser: the end of the program was reached at line %u, pos %u\n", cur_lexem.get_line (), cur_lexem.get_pos ());
-        root_->print ("tree.dot");
-        return root_->clone ();
+        return;
     } 
 
-
     IAST* Parser::code_parse () {
-        auto tree = function_parse ();
+        static int controller = 0;
+        ++controller;
+    
+        if (controller > 1)
+        {
+            auto tree = function_parse ();//
+            auto cur_lexem = lxr_.get_cur_lexem ();
+            while (!cur_lexem.is_closing_operator ()) {
+                if (cur_lexem.is_semicolon ()) {
+                    lxr_.next_lexem ();
+                    cur_lexem = lxr_.get_cur_lexem ();
+                    continue;
+                }
 
-        auto cur_lexem = lxr_.get_cur_lexem ();
-        while (!cur_lexem.is_closing_operator ()) {
-            if (cur_lexem.is_semicolon ()) {
-                lxr_.next_lexem ();
+                auto right = function_parse ();
+
+                tree = new Op_AST (op::CODE, tree, right);
                 cur_lexem = lxr_.get_cur_lexem ();
-                continue;
             }
-
-            auto right = function_parse ();
-
-            tree = new Op_AST (op::CODE, tree, right);
-            cur_lexem = lxr_.get_cur_lexem ();
+            --controller;
+            return tree;
         }
-
-        return tree;
+        else
+        {
+            auto cur_lexem = lxr_.get_cur_lexem ();
+            if (cur_lexem.is_closing_operator ())
+            {
+                last_part_ = nullptr;
+                return nullptr;
+            }
+            auto tree = function_parse ();
+            --controller;
+            last_part_ = tree;
+            if (root_ == nullptr)
+                return tree;
+            return new Op_AST (op::CODE, root_, tree);
+        }
     }
 
 
