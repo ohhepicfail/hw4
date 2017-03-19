@@ -26,6 +26,7 @@ namespace op {
         IF,
         ENDWHILE,
         ENDIF,
+        ENDFUNC,
         CAPTURE,
         COMMA,
         WHILE,
