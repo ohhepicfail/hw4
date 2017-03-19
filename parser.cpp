@@ -121,7 +121,8 @@ namespace parser {
                 case WHILE:     work_on_cond_op (tmp, op::WHILE);
                                 return tmp;
                 
-                case ENDWHILE...ENDIF:  
+                case ENDWHILE:
+                case ENDIF:  
                                 cur_deep_diff_ = 1;
                                 deep_decreased_ = true;
                                 if (status_ == INTERPRETER)
