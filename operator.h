@@ -24,6 +24,7 @@ namespace op {
         NOTEQUAL,
         COLON,
         IF,
+        ENDWHILE,
         ENDIF,
         CAPTURE,
         COMMA,
