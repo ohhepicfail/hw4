@@ -24,6 +24,8 @@ namespace op {
             case COLON      : return ":";       break;
             case IF         : return "if";      break;
             case ENDIF      : return "endif";   break;
+            case ENDWHILE   : return "endwhile";break;
+            case ENDFUNC    : return "endfunc"; break;
             case CAPTURE    : return "capture"; break;
             case COMMA      : return ",";       break;
             case WHILE      : return "while";   break;
