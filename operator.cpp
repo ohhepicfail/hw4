@@ -26,6 +26,9 @@ namespace op {
             case ENDIF      : return "endif";   break;
             case ENDWHILE   : return "endwhile";break;
             case ENDFUNC    : return "endfunc"; break;
+            case ENDTRUE    : return "endtrue"; break;
+            case ENDFALSE   : return "endfalse";
+            case ENDCOND    : return "endcond"; break;
             case CAPTURE    : return "capture"; break;
             case COMMA      : return ",";       break;
             case WHILE      : return "while";   break;
