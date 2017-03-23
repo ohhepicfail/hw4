@@ -33,7 +33,7 @@ namespace parser {
         {
             if (parts_.empty ())
                 return;
-            if (tmp->get_type () == VAL || tmp->get_type () == VAR ||
+            if  (tmp->get_type () == VAL || tmp->get_type () == VAR ||
                 tmp->get_op () != op::ENDWHILE  || tmp->get_op () != op::ENDIF)
             {
                 tmp = parts_.top ();
@@ -42,6 +42,53 @@ namespace parser {
             }
             else
                 return;
+        }
+    }
+
+    std::stack<const ast::IAST*>& Parser::get_next_expr () {
+        return expr_;
+    }
+
+    void Parser::fill_expr (const ast::IAST* node)
+    {
+        std::stack<const ast::IAST*>().swap (expr_);
+        std::stack<const ast::IAST*> carry;
+        assert (node);
+        while (1)
+        {
+            if (node->get_type () == Type::OP)
+            {
+                switch (node->get_op ())
+                {
+                    case TERN:  carry.push (node->get_left ());
+                                carry.push (new Op_AST (op::END_COND, nullptr, nullptr));
+                                carry.push (node->get_right ()->get_left ());
+                                carry.push (new Op_AST (op::END_TRUE, nullptr, nullptr));
+                                carry.push (node->get_right ()->get_right ());
+                                expr_.push (new Op_AST (op::END_FALSE, nullptr, nullptr));
+                                node = carry.top ();
+                                carry.pop ();
+                                break;
+                    case END_TRUE:
+                    case END_FALSE:
+                    case END_COND:  expr_.push (node);
+                                    node = carry.top ();
+                                    carry.pop ();
+                                    break;
+                    default:    expr_.push (node);
+                                carry.push (node->get_left ());
+                                node = node->get_right ();
+                                break;
+                }
+            }
+            else
+            {   
+                expr_.push (node);
+                if (carry.empty ())
+                    return;
+                node = carry.top ();
+                carry.pop ();
+            }
         }
     }
 
@@ -88,8 +135,8 @@ namespace parser {
             auto cur_type = last_part_->get_op ();
             switch (cur_type)
             {
-                case ASSIGN:    parts_.push (last_part_->get_right ());
-                                parts_.push (last_part_->get_left ());
+                case ASSIGN:    parts_.push (last_part_->get_left ());
+                                fill_expr (last_part_->get_right ());
                                 return last_part_;
 
                 case IF:        work_on_cond_op (last_part_, op::IF); 
@@ -121,8 +168,7 @@ namespace parser {
                 case WHILE:     work_on_cond_op (tmp, op::WHILE);
                                 return tmp;
                 
-                case ENDWHILE:
-                case ENDIF:  
+                case ENDWHILE...ENDIF:  
                                 cur_deep_diff_ = 1;
                                 deep_decreased_ = true;
                                 if (status_ == INTERPRETER)
@@ -139,7 +185,7 @@ namespace parser {
                                         parts_.pop ();
                                     }
                                     else
-                                        break;//return tmp;
+                                        break;
                                 }
                                 return get_next ();
 
