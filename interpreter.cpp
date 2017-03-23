@@ -12,7 +12,6 @@ namespace ipr {
 
 
     double Interpreter::run () {
-        root_->print ("tree.dot");
         calculate ();
 
         auto find_res = var_value_.find ("result");
@@ -25,119 +24,154 @@ namespace ipr {
 
 
     void Interpreter::calculate () {
-        struct Program_data {
-            std::stack <const ast::IAST*> prog_;
-            std::unordered_map <std::string, double> var_htable_;
-        };
-        std::stack <Program_data> scope;
-        
-        const ast::IAST* cur_node = root_;
+        auto cur_node = parser_.get_next ();
+
         for (;;) {
             if (cur_node->get_type () != type::OP) {
                 printf ("Statement has no effect\n");
                 abort ();
             }
             switch (cur_node->get_op ()) {
-
                 default:
                     assert (0);
                 break;
 
-
-                case op::CODE: {
-                    auto r = cur_node->get_right ();
-                    auto l = cur_node->get_left ();
-                    assert (r);
-                    assert (l);
-
-                    prog_nodes_.push (r);
-                    prog_nodes_.push (l);
-                } break;
-
-
-                case op::ASSIGN: {              // assign + tern
-                    auto var = cur_node->get_left ();
+                case op::ASSIGN: {
+                    auto var = parser_.get_next ();
                     assert (var);
-                    assert (var->get_type () == type::VAR);
+                    assert (var->get_type () == type::VAR); 
 
-                    auto r = cur_node->get_right ();
-                    decltype (calculate_val (r)) res;
-
-                    if (r->get_type () == type::OP && r->get_op () == op::TERN) {
-                        cur_node = r->get_right ();
-                        assert (cur_node);
-
-                        if (calculate_cond (r->get_left ()))
-                            res = calculate_val (cur_node->get_left ());
-                        else
-                            res = calculate_val (cur_node->get_right ());      
-                    }
-                    else
-                        res = calculate_val (r);
+                    auto r = parser_.get_next ();
+                    auto res = calculate_val (r);
 
                     auto find_res = var_value_.find (var->get_var ());
                     if (find_res == var_value_.end ())
                         var_value_.insert (std::make_pair (var->get_var (), res));
                     else
                         find_res->second = res;
+                    
                 } break;
-
-
-                case op::WHILE:
-                case op::IF: {
-                    if (!calculate_cond (cur_node->get_left ()))
-                        break;
-
-                    prog_nodes_.push (cur_node);        // we need var_list for update_htable () when the scope 
-                                                        // will be decreased
-                    cur_node = cur_node->get_right ();
-                    assert (cur_node);
-
-                    scope.push (Program_data {prog_nodes_, var_value_});
-
-                    std::stack <const ast::IAST*> ().swap (prog_nodes_);    // clear stack
-                    assert (prog_nodes_.empty ());
-
-                    create_htable (cur_node->get_left ());
-                    cur_node = cur_node->get_right ();
-                    continue;
-                } break;
-
-            }
-
-            for (;;) {
-                if (prog_nodes_.empty ()) {
-                    if (scope.empty ())
-                        return;
-
-                    auto tmp_prog_nodes = scope.top ().prog_;
-                    cur_node = tmp_prog_nodes.top ();
-                    tmp_prog_nodes.pop ();
-
-                    if (cur_node->get_op () == op::WHILE) 
-                        if (calculate_cond (cur_node->get_left ())) {
-                            cur_node = cur_node->get_right ()->get_right ();
-                            break;
-                        }
-
-                    prog_nodes_ = tmp_prog_nodes;
-
-                    cur_node = cur_node->get_right ()->get_left ();        // var_list for update_htable ()
-                    update_htable (cur_node, scope.top ().var_htable_);
-                    scope.pop ();
-                }
-           
-                if (prog_nodes_.empty ())
-                    continue;
-                cur_node = prog_nodes_.top ();
-                prog_nodes_.pop ();
-                break;
             }
             
-
+            cur_node = parser_.get_next ();
+            if (!cur_node)
+                break;
         }
 
     }
+    //     struct Program_data {
+    //         std::stack <const ast::IAST*> prog_;
+    //         std::unordered_map <std::string, double> var_htable_;
+    //     };
+    //     std::stack <Program_data> scope;
+        
+    //     const ast::IAST* cur_node = root_;
+    //     for (;;) {
+    //         if (cur_node->get_type () != type::OP) {
+    //             printf ("Statement has no effect\n");
+    //             abort ();
+    //         }
+    //         switch (cur_node->get_op ()) {
+
+    //             default:
+    //                 assert (0);
+    //             break;
+
+
+    //             case op::CODE: {
+    //                 auto r = cur_node->get_right ();
+    //                 auto l = cur_node->get_left ();
+    //                 assert (r);
+    //                 assert (l);
+
+    //                 prog_nodes_.push (r);
+    //                 prog_nodes_.push (l);
+    //             } break;
+
+
+    //             case op::ASSIGN: {              // assign + tern
+    //                 auto var = cur_node->get_left ();
+    //                 assert (var);
+    //                 assert (var->get_type () == type::VAR);
+
+    //                 auto r = cur_node->get_right ();
+    //                 decltype (calculate_val (r)) res;
+
+    //                 if (r->get_type () == type::OP && r->get_op () == op::TERN) {
+    //                     cur_node = r->get_right ();
+    //                     assert (cur_node);
+
+    //                     if (calculate_cond (r->get_left ()))
+    //                         res = calculate_val (cur_node->get_left ());
+    //                     else
+    //                         res = calculate_val (cur_node->get_right ());      
+    //                 }
+    //                 else
+    //                     res = calculate_val (r);
+
+    //                 auto find_res = var_value_.find (var->get_var ());
+    //                 if (find_res == var_value_.end ())
+    //                     var_value_.insert (std::make_pair (var->get_var (), res));
+    //                 else
+    //                     find_res->second = res;
+    //             } break;
+
+
+    //             case op::WHILE:
+    //             case op::IF: {
+    //                 if (!calculate_cond (cur_node->get_left ()))
+    //                     break;
+
+    //                 prog_nodes_.push (cur_node);        // we need var_list for update_htable () when the scope 
+    //                                                     // will be decreased
+    //                 cur_node = cur_node->get_right ();
+    //                 assert (cur_node);
+
+    //                 scope.push (Program_data {prog_nodes_, var_value_});
+
+    //                 std::stack <const ast::IAST*> ().swap (prog_nodes_);    // clear stack
+    //                 assert (prog_nodes_.empty ());
+
+    //                 create_htable (cur_node->get_left ());
+    //                 cur_node = cur_node->get_right ();
+    //                 continue;
+    //             } break;
+
+    //         }
+
+    //         for (;;) {
+    //             if (prog_nodes_.empty ()) {
+    //                 if (scope.empty ())
+    //                     return;
+
+    //                 auto tmp_prog_nodes = scope.top ().prog_;
+    //                 cur_node = tmp_prog_nodes.top ();
+    //                 tmp_prog_nodes.pop ();
+
+    //                 if (cur_node->get_op () == op::WHILE) 
+    //                     if (calculate_cond (cur_node->get_left ())) {
+    //                         cur_node = cur_node->get_right ()->get_right ();
+    //                         break;
+    //                     }
+
+    //                 prog_nodes_ = tmp_prog_nodes;
+
+    //                 cur_node = cur_node->get_right ()->get_left ();        // var_list for update_htable ()
+    //                 update_htable (cur_node, scope.top ().var_htable_);
+    //                 scope.pop ();
+    //             }
+           
+    //             if (prog_nodes_.empty ())
+    //                 continue;
+    //             cur_node = prog_nodes_.top ();
+    //             prog_nodes_.pop ();
+    //             break;
+    //         }
+            
+
+    //     }
+
+    // }
 
 
     bool Interpreter::calculate_cond (const ast::IAST* cond) {
@@ -350,27 +384,27 @@ namespace ipr {
     }
 
 
-    Interpreter& Interpreter::operator= (const Interpreter& that) {
-        if (this == &that)
-            return *this;
+    // Interpreter& Interpreter::operator= (const Interpreter& that) {
+    //     if (this == &that)
+    //         return *this;
 
-        delete root_;
-        root_ = nullptr;
-        Interpreter tmp (that);
-        *this = std::move (tmp);
+    //     delete root_;
+    //     root_ = nullptr;
+    //     Interpreter tmp (that);
+    //     *this = std::move (tmp);
 
-        return *this;
-    }
+    //     return *this;
+    // }
 
 
-    Interpreter& Interpreter::operator= (Interpreter&& that) {
-        delete root_;
-        root_ = that.root_;
-        that.root_ = nullptr;
+    // Interpreter& Interpreter::operator= (Interpreter&& that) {
+    //     delete root_;
+    //     root_ = that.root_;
+    //     that.root_ = nullptr;
 
-        prog_nodes_ = std::move (that.prog_nodes_);
-        var_value_  = std::move (that.var_value_);
+    //     prog_nodes_ = std::move (that.prog_nodes_);
+    //     var_value_  = std::move (that.var_value_);
 
-        return *this;
-    }
+    //     return *this;
+    // }
 }

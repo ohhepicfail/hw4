@@ -1,7 +1,7 @@
 #ifndef INTERPRETER_H
 #define INTERPRETER_H
 
-#include "ast.h"
+#include "parser.h"
 #include <stack>
 #include <unordered_map>
 
@@ -9,8 +9,8 @@ namespace ipr {
 
     class Interpreter {
     private:
-        ast::IAST* root_;
-        std::stack <const ast::IAST*> prog_nodes_;
+        parser::Parser parser_;
+        // std::stack <const ast::IAST*> prog_nodes_;
         std::unordered_map <std::string, double> var_value_;
 
         void   calculate ();
@@ -23,17 +23,17 @@ namespace ipr {
         void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
 
     public:
-        explicit Interpreter (ast::IAST* prog) : root_ (prog) {}
-        ~Interpreter () { delete root_; }
-        Interpreter (const Interpreter& that) : root_ (that.root_ ? that.root_->clone () : 0)
-                                              , prog_nodes_ (that.prog_nodes_)
-                                              , var_value_ (that.var_value_) {}
-        Interpreter (Interpreter&& that) : root_ (that.root_)
-                                         , prog_nodes_ (std::move (that.prog_nodes_))
-                                         , var_value_ (std::move (that.var_value_)) 
-                                         { that.root_ = nullptr; }
-        Interpreter& operator= (const Interpreter& that);
-        Interpreter& operator= (Interpreter&& that);
+        explicit Interpreter (std::string& filename) : parser_ (filename.c_str (), parser::INTERPRETER) {}
+        ~Interpreter () {}
+        // Interpreter (const Interpreter& that) : root_ (that.root_ ? that.root_->clone () : 0)
+        //                                       , prog_nodes_ (that.prog_nodes_)
+        //                                       , var_value_ (that.var_value_) {}
+        // Interpreter (Interpreter&& that) : root_ (that.root_)
+        //                                  , prog_nodes_ (std::move (that.prog_nodes_))
+        //                                  , var_value_ (std::move (that.var_value_)) 
+        //                                  { that.root_ = nullptr; }
+        // Interpreter& operator= (const Interpreter& that);
+        // Interpreter& operator= (Interpreter&& that);
 
         double run ();
 
