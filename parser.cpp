@@ -61,11 +61,11 @@ namespace parser {
                 switch (node->get_op ())
                 {
                     case TERN:  carry.push (node->get_left ());
-                                carry.push (new Op_AST (op::END_COND, nullptr, nullptr));
+                                carry.push (new Op_AST (op::ENDCOND, nullptr, nullptr));
                                 carry.push (node->get_right ()->get_left ());
-                                carry.push (new Op_AST (op::END_TRUE, nullptr, nullptr));
+                                carry.push (new Op_AST (op::ENDTRUE, nullptr, nullptr));
                                 carry.push (node->get_right ()->get_right ());
-                                expr_.push (new Op_AST (op::END_FALSE, nullptr, nullptr));
+                                expr_.push (new Op_AST (op::ENDFALSE, nullptr, nullptr));
                                 node = carry.top ();
                                 carry.pop ();
                                 break;
