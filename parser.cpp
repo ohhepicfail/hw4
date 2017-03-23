@@ -69,9 +69,9 @@ namespace parser {
                                 node = carry.top ();
                                 carry.pop ();
                                 break;
-                    case END_TRUE:
-                    case END_FALSE:
-                    case END_COND:  expr_.push (node);
+                    case ENDTRUE:
+                    case ENDFALSE:
+                    case ENDCOND:   expr_.push (node);
                                     node = carry.top ();
                                     carry.pop ();
                                     break;
@@ -168,8 +168,8 @@ namespace parser {
                 case WHILE:     work_on_cond_op (tmp, op::WHILE);
                                 return tmp;
                 
-                case ENDWHILE...ENDIF:  
-                                cur_deep_diff_ = 1;
+                case ENDWHILE:
+                case ENDIF:     cur_deep_diff_ = 1;
                                 deep_decreased_ = true;
                                 if (status_ == INTERPRETER)
                                     return tmp;
