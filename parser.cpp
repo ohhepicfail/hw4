@@ -122,7 +122,7 @@ namespace parser {
             }
         } 
         parts_.push (node->get_right ()->get_left ());
-        parts_.push (node->get_left ()); 
+        fill_expr (node->get_left ()); 
     }
 
     IAST const* Parser::get_next ()
@@ -158,8 +158,8 @@ namespace parser {
             auto cur_type = tmp->get_op ();
             switch (cur_type)
             {
-                case ASSIGN:    parts_.push (tmp->get_right ());
-                                parts_.push (tmp->get_left ());
+                case ASSIGN:    parts_.push (tmp->get_left ());
+                                fill_expr (tmp->get_right ());
                                 return tmp;
 
                 case IF:        work_on_cond_op (tmp, op::IF);
