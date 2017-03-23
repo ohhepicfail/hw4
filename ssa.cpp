@@ -115,7 +115,7 @@ void ssa_translator::add_if (const ast::IAST *node)
     }
     places_.push (Place::IF); 
     graph_.set_edge (graph_.nodes_size () - 2, graph_.nodes_size () - 1);
-    psr_.get_next (); psr_.get_next ();
+    psr_.get_next ();
     cond_.push (graph_.nodes_size () - 2);
 }
 
@@ -140,7 +140,7 @@ void ssa_translator::add_while (const ast::IAST *node)
     graph_.set_edge (sz - 2, sz - 1);
     places_.push (Place::WHILE);
     cond_.push (sz - 2); 
-    psr_.get_next (); psr_.get_next ();
+    psr_.get_next ();
 }
         
 void ssa_translator::build_CFG ()
@@ -156,7 +156,7 @@ void ssa_translator::build_CFG ()
                                  solve_decrease (cur_node); 
                              else
                                  graph_.push_in_node (cur_node);
-                             psr_.get_next (); psr_.get_next ();
+                             psr_.get_next ();
                              break;
             
              case op::IF:    add_if (cur_node);
