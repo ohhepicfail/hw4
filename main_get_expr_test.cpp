@@ -26,6 +26,10 @@ std::ostream& operator<< (std::ostream& stream, std::stack<const ast::IAST*>& st
     }
     return stream;
 }
+/*
+*****input file is expected to contain only one line like:
+*****   result  =  ..... ;
+*/
 
 int main (int argc, char **argv)
 {
