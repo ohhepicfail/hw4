@@ -27,6 +27,11 @@ namespace parser {
     {
         if (parts_.empty ())
             return;
+        if (endwhile_poped)
+        {
+            endwhile_poped = false;
+            repetitive_.pop ();
+        }
         auto tmp = parts_.top ();
         parts_.pop ();
         while (1)
@@ -127,6 +132,8 @@ namespace parser {
 
     IAST const* Parser::get_next ()
     {
+        if (endwhile_poped)
+            endwhile_poped = false;
         if (parts_.empty ())
         {
             build();
