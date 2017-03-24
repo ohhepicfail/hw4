@@ -24,8 +24,15 @@ namespace ipr {
 
 
     void Interpreter::calculate () {
+        struct scope_data {
+            scope_data (decltype (var_value_) hash_table, decltype (parser_.get_next ()) var_list) : 
+                                                        htable_ (hash_table)
+                                                      , var_list_ (var_list) {} 
+            decltype (var_value_) htable_;
+            decltype (parser_.get_next ()) var_list_;
+        };
+        std::stack <scope_data> scope;
         auto cur_node = parser_.get_next ();
-
         for (;;) {
             if (cur_node->get_type () != type::OP) {
                 printf ("Statement has no effect\n");
@@ -35,6 +42,47 @@ namespace ipr {
                 default:
                     assert (0);
                 break;
+
+                case op::IF: {
+                    auto expr = parser_.get_next_expr ();
+                    std::stack<double> intermediate_st;
+                    auto completed = calculate_expr (expr, intermediate_st);
+                    assert (completed);
+                
+                    if (intermediate_st.top ()) {
+                        cur_node = parser_.get_next ();
+                        scope.push (scope_data (var_value_, cur_node));
+                        create_htable (cur_node);                
+                    }
+                    else {
+                        unsigned if_counter = 0;
+                        auto unit = parser_.get_next ();
+                        for (;;) {
+                            if (!unit) {
+                                printf ("syntax error\n");
+                                abort ();
+                            }
+                            else if (unit->get_type () == type::OP && unit->get_op () == op::ENDIF) {
+                                if (if_counter == 0)
+                                    break;
+                                else
+                                    --if_counter;
+                            }
+                            else if (unit->get_type () == type::OP && unit->get_op () == op::IF) 
+                                ++if_counter;
+                            unit = parser_.get_next ();
+                        }
+                    }
+                } break;
+
+                case op::ENDIF: {
+                    if (scope.empty ()) {
+                        printf ("without previous if\n");
+                        abort ();
+                    }
+                    update_htable (scope.top ().var_list_, scope.top ().htable_);
+                    scope.pop ();
+                } break;
 
                 case op::ASSIGN: {
                     auto var = parser_.get_next ();
@@ -393,74 +441,74 @@ namespace ipr {
     // }
     
 
-    // void Interpreter::update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable) {
-    //     assert (var_list);
-    //     assert (var_list->get_type () == VAR);
+    void Interpreter::update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable) {
+        assert (var_list);
+        assert (var_list->get_type () == VAR);
 
-    //     auto var_str = var_list->get_var ();
+        auto var_str = var_list->get_var ();
 
-    //     if (var_str[0] == '*') {
-    //         for (const auto& elem : var_value_) {
-    //             auto find_res = old_htable.find (elem.first);
-    //             if (find_res != old_htable.end ())
-    //                 find_res->second = elem.second;
-    //         }
-    //     }
-    //     else {
-    //         unsigned begin = 0;
-    //         unsigned end   = 0;
-    //         while (var_str.length () > end) {
-    //             while (var_str[end] != ',' && var_str[end] != '\0')
-    //                 end++;
+        if (var_str[0] == '*') {
+            for (const auto& elem : var_value_) {
+                auto find_res = old_htable.find (elem.first);
+                if (find_res != old_htable.end ())
+                    find_res->second = elem.second;
+            }
+        }
+        else {
+            unsigned begin = 0;
+            unsigned end   = 0;
+            while (var_str.length () > end) {
+                while (var_str[end] != ',' && var_str[end] != '\0')
+                    end++;
 
-    //             std::string var (var_str, begin, end - begin);
-    //             end++;
-    //             begin = end;
+                std::string var (var_str, begin, end - begin);
+                end++;
+                begin = end;
 
-    //             auto find_res = var_value_.find (var);
-    //             assert (find_res != var_value_.end ());
-    //             auto find_res_old = old_htable.find(var);
-    //             if (find_res_old != old_htable.end ())
-    //                 find_res_old->second = find_res->second;
-    //         }
-    //     }
+                auto find_res = var_value_.find (var);
+                assert (find_res != var_value_.end ());
+                auto find_res_old = old_htable.find(var);
+                if (find_res_old != old_htable.end ())
+                    find_res_old->second = find_res->second;
+            }
+        }
 
-    //     var_value_ = old_htable;
-    // }
+        var_value_ = old_htable;
+    }
 
 
-    // void Interpreter::create_htable (const ast::IAST* var_list) {
-    //     assert (var_list);
-    //     assert (var_list->get_type () == VAR);
+    void Interpreter::create_htable (const ast::IAST* var_list) {
+        assert (var_list);
+        assert (var_list->get_type () == VAR);
 
-    //     auto var_str = var_list->get_var ();
-    //     auto old_htable = var_value_;
-    //     var_value_.clear ();
+        auto var_str = var_list->get_var ();
+        auto old_htable = var_value_;
+        var_value_.clear ();
 
-    //     unsigned begin = 0;
-    //     unsigned end   = 0;
-    //     while (var_str.length () > end) {
-    //         if (var_str[begin] == '*') {
-    //             var_value_ = old_htable;
-    //             break;
-    //         }
-    //         while (end < var_str.length () && var_str[end] != ',')
-    //             end++;
+        unsigned begin = 0;
+        unsigned end   = 0;
+        while (var_str.length () > end) {
+            if (var_str[begin] == '*') {
+                var_value_ = old_htable;
+                break;
+            }
+            while (end < var_str.length () && var_str[end] != ',')
+                end++;
 
-    //         std::string var (var_str, begin, end - begin);
-    //         end++;
-    //         begin = end;
+            std::string var (var_str, begin, end - begin);
+            end++;
+            begin = end;
 
-    //         auto find_res = old_htable.find (var);
-    //         if (find_res == old_htable.end ()) {
-    //             printf ("\nunknown var '%s' in capture block\n", var.c_str ());
-    //             abort ();
-    //         }
-    //         else
-    //             var_value_.insert (std::make_pair (var, find_res->second));
-    //     }
+            auto find_res = old_htable.find (var);
+            if (find_res == old_htable.end ()) {
+                printf ("\nunknown var '%s' in capture block\n", var.c_str ());
+                abort ();
+            }
+            else
+                var_value_.insert (std::make_pair (var, find_res->second));
+        }
 
-    // }
+    }
 
 
     // Interpreter& Interpreter::operator= (const Interpreter& that) {

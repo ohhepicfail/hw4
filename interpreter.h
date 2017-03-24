@@ -20,8 +20,8 @@ namespace ipr {
 
         // double get_value (const ast::IAST* node);
 
-        // void create_htable (const ast::IAST* var_list);
-        // void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
+        void create_htable (const ast::IAST* var_list);
+        void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
 
     public:
         explicit Interpreter (std::string& filename) : parser_ (filename.c_str (), parser::INTERPRETER) {}
