@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "operator.h"
 #include <cassert>
 #include <list>
 
@@ -33,8 +34,8 @@ namespace parser {
         {
             if (parts_.empty ())
                 return;
-            if (tmp->get_type () == VAL || tmp->get_type () == VAR ||
-                tmp->get_op () != op::ENDWHILE  || tmp->get_op () != op::ENDIF || tmp->get_op ())
+            if  (tmp->get_type () == VAL || tmp->get_type () == VAR ||
+                tmp->get_op () != op::ENDWHILE  || tmp->get_op () != op::ENDIF)
             {
                 tmp = parts_.top ();
                 parts_.pop ();
@@ -42,6 +43,53 @@ namespace parser {
             }
             else
                 return;
+        }
+    }
+
+    std::stack<const ast::IAST*>& Parser::get_next_expr () {
+        return expr_;
+    }
+
+    void Parser::fill_expr (const ast::IAST* node)
+    {
+        std::stack<const ast::IAST*>().swap (expr_);
+        std::stack<const ast::IAST*> carry;
+        assert (node);
+        while (1)
+        {
+            if (node->get_type () == Type::OP)
+            {
+                switch (node->get_op ())
+                {
+                    case TERN:  carry.push (node->get_left ());
+                                carry.push (new Op_AST (op::ENDCOND, nullptr, nullptr));
+                                carry.push (node->get_right ()->get_left ());
+                                carry.push (new Op_AST (op::ENDTRUE, nullptr, nullptr));
+                                carry.push (node->get_right ()->get_right ());
+                                expr_.push (new Op_AST (op::ENDFALSE, nullptr, nullptr));
+                                node = carry.top ();
+                                carry.pop ();
+                                break;
+                    case ENDTRUE:
+                    case ENDFALSE:
+                    case ENDCOND:   expr_.push (node);
+                                    node = carry.top ();
+                                    carry.pop ();
+                                    break;
+                    default:    expr_.push (node);
+                                carry.push (node->get_left ());
+                                node = node->get_right ();
+                                break;
+                }
+            }
+            else
+            {   
+                expr_.push (node);
+                if (carry.empty ())
+                    return;
+                node = carry.top ();
+                carry.pop ();
+            }
         }
     }
 
@@ -75,7 +123,7 @@ namespace parser {
             }
         } 
         parts_.push (node->get_right ()->get_left ());
-        parts_.push (node->get_left ()); 
+        fill_expr (node->get_left ()); 
     }
 
     IAST const* Parser::get_next ()
@@ -88,8 +136,8 @@ namespace parser {
             auto cur_type = last_part_->get_op ();
             switch (cur_type)
             {
-                case ASSIGN:    parts_.push (last_part_->get_right ());
-                                parts_.push (last_part_->get_left ());
+                case ASSIGN:    parts_.push (last_part_->get_left ());
+                                fill_expr (last_part_->get_right ());
                                 return last_part_;
 
                 case IF:        work_on_cond_op (last_part_, op::IF); 
@@ -111,8 +159,8 @@ namespace parser {
             auto cur_type = tmp->get_op ();
             switch (cur_type)
             {
-                case ASSIGN:    parts_.push (tmp->get_right ());
-                                parts_.push (tmp->get_left ());
+                case ASSIGN:    parts_.push (tmp->get_left ());
+                                fill_expr (tmp->get_right ());
                                 return tmp;
 
                 case IF:        work_on_cond_op (tmp, op::IF);
@@ -122,8 +170,7 @@ namespace parser {
                                 return tmp;
                 
                 case ENDWHILE:
-                case ENDIF:  
-                                cur_deep_diff_ = 1;
+                case ENDIF:     cur_deep_diff_ = 1;
                                 deep_decreased_ = true;
                                 if (status_ == INTERPRETER)
                                     return tmp;
@@ -139,7 +186,7 @@ namespace parser {
                                         parts_.pop ();
                                     }
                                     else
-                                        break;//return tmp;
+                                        break;
                                 }
                                 return get_next ();
 

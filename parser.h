@@ -27,12 +27,12 @@ namespace parser {
         unsigned    cur_deep_diff_ = 0;
         bool        deep_decreased_ = false; 
         Status      status_;
-
+        std::stack<const ast::IAST*> expr_;
         std::stack<const ast::IAST*> repetitive_;
         std::stack<const ast::IAST*> parts_;
-         
         void work_on_cond_op (const IAST* node, op::Operator op_type); 
-        
+        void fill_expr (const ast::IAST* node);
+
         IAST* code_parse ();
         IAST* function_parse ();
         IAST* while_parse ();
@@ -61,6 +61,7 @@ namespace parser {
         Parser& operator= (Parser&& that);
         
         IAST const* get_next (); 
+        std::stack<const ast::IAST*>& get_next_expr ();
         void repeat ();
         void skip ();
         bool deep_decreased ();
