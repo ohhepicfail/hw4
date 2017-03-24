@@ -14,13 +14,14 @@ namespace ipr {
         std::unordered_map <std::string, double> var_value_;
 
         void   calculate ();
-        double calculate_val  (const ast::IAST* val_root);
-        bool   calculate_cond (const ast::IAST* cond);
+        bool   calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<double>& intermediate_st);
+        // double calculate_val  (const ast::IAST* val_root);
+        // bool   calculate_cond (const ast::IAST* cond);
 
-        double get_value (const ast::IAST* node);
+        // double get_value (const ast::IAST* node);
 
-        void create_htable (const ast::IAST* var_list);
-        void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
+        // void create_htable (const ast::IAST* var_list);
+        // void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
 
     public:
         explicit Interpreter (std::string& filename) : parser_ (filename.c_str (), parser::INTERPRETER) {}

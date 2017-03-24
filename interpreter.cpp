@@ -3,12 +3,12 @@
 #include <string>
 
 namespace ipr {
-    struct Node_info {
-        const ast::IAST*  node_;
-        bool need_to_visit_;
-    };
+    // struct Node_info {
+    //     const ast::IAST*  node_;
+    //     bool need_to_visit_;
+    // };
     
-    std::stack<Node_info> build_expr_stack (const ast::IAST*  node);
+    // std::stack<Node_info> build_expr_stack (const ast::IAST*  node);
 
 
     double Interpreter::run () {
@@ -41,9 +41,38 @@ namespace ipr {
                     assert (var);
                     assert (var->get_type () == type::VAR); 
 
-                    auto r = parser_.get_next ();
-                    auto res = calculate_val (r);
+                    auto expr = parser_.get_next_expr ();
+                    std::stack<double> intermediate_st;
+                    auto completed = calculate_expr (expr, intermediate_st);
+                    
+                    // tern or func (because there is something different from +, -, *, /
+                    if (!completed) {       
+                        auto cond_result = intermediate_st.top ();
+                        intermediate_st.pop ();
 
+                        if (cond_result) {
+                            expr.pop ();         // ENDCOND
+                            calculate_expr (expr, intermediate_st);
+                            if (expr.top ()->get_op () == op::FUNCTION)
+                                assert (0);
+                            else if (expr.top ()->get_op () != op::ENDTRUE)
+                                assert (0);
+                                                   
+                        }
+                        else {
+                            while (expr.top ()->get_type () != type::OP
+                                || expr.top ()->get_op ()   != op::ENDTRUE)
+                                    expr.pop (); 
+                            expr.pop ();     // ENDTRUE;
+    
+                            calculate_expr (expr, intermediate_st);
+                            if (expr.top ()->get_op () == op::FUNCTION)
+                                assert (0);
+                            else if (expr.top ()->get_op () != op::ENDFALSE)
+                                assert (0);
+                        }
+                    }
+                    auto res = intermediate_st.top ();
                     auto find_res = var_value_.find (var->get_var ());
                     if (find_res == var_value_.end ())
                         var_value_.insert (std::make_pair (var->get_var (), res));
@@ -58,6 +87,56 @@ namespace ipr {
                 break;
         }
 
+    }
+
+
+    bool Interpreter::calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<double>& intermediate_st) {
+        while (!expr.empty ()) {
+            auto unit = expr.top ();
+            switch (unit->get_type ()) {
+                default: 
+                    assert (0);
+                break;
+
+                case type::VAL:
+                    intermediate_st.push (unit->get_val ());
+                break;
+
+                case type::VAR: {
+                    auto find_res = var_value_.find (unit->get_var ());
+                    if (find_res == var_value_.end ()) {
+                        printf ("unknown var %s\n", unit->get_var ().c_str ());
+                        abort ();
+                    }
+                    else
+                        intermediate_st.push (find_res->second);
+                } break;
+
+                case type::OP: {
+                    if (intermediate_st.size () <= 1)
+                        return false;               // bad op
+                    auto right = intermediate_st.top ();
+                    intermediate_st.pop ();
+                    auto left  = intermediate_st.top ();
+                    intermediate_st.pop ();
+                    switch (unit->get_op ()) {
+                        default: return false; break;
+                        case op::ADD:       intermediate_st.push (left + right);  break;
+                        case op::SUB:       intermediate_st.push (left - right);  break;
+                        case op::MUL:       intermediate_st.push (left * right);  break;
+                        case op::DIV:       intermediate_st.push (left / right);  break;
+                        case op::MORE:      intermediate_st.push (left > right);  break;
+                        case op::LESS:      intermediate_st.push (left < right);  break;
+                        case op::MOREOREQ:  intermediate_st.push (left >= right); break;
+                        case op::LESSOREQ:  intermediate_st.push (left <= right); break;
+                        case op::EQUAL:     intermediate_st.push (left == right); break; 
+                        case op::NOTEQUAL:  intermediate_st.push (left != right); break;  
+                    }
+                } break;
+            }
+            expr.pop ();
+        }
+        return true;
     }
     //     struct Program_data {
     //         std::stack <const ast::IAST*> prog_;
@@ -174,214 +253,214 @@ namespace ipr {
     // }
 
 
-    bool Interpreter::calculate_cond (const ast::IAST* cond) {
-        assert (cond);
+    // bool Interpreter::calculate_cond (const ast::IAST* cond) {
+    //     assert (cond);
 
-        if (cond->get_type () != OP) 
-            return calculate_val (cond);
+    //     if (cond->get_type () != OP) 
+    //         return calculate_val (cond);
 
-        auto l = calculate_val (cond->get_left ());
-        auto r = calculate_val (cond->get_right ());
+    //     auto l = calculate_val (cond->get_left ());
+    //     auto r = calculate_val (cond->get_right ());
 
-        assert (cond->get_type () == type::OP);
-        auto oper = cond->get_op ();
+    //     assert (cond->get_type () == type::OP);
+    //     auto oper = cond->get_op ();
 
-        using namespace op;
-        switch (oper) {
-            default       : printf ("\nunknown comparison operator\n"); abort (); break;
-            case MORE     : return l > r;
-            case MOREOREQ : return l >= r;
-            case LESS     : return l < r;
-            case LESSOREQ : return l <= r;
-            case EQUAL    : return l == r;
-            case NOTEQUAL : return l != r;
-        }
-    }
+    //     using namespace op;
+    //     switch (oper) {
+    //         default       : printf ("\nunknown comparison operator\n"); abort (); break;
+    //         case MORE     : return l > r;
+    //         case MOREOREQ : return l >= r;
+    //         case LESS     : return l < r;
+    //         case LESSOREQ : return l <= r;
+    //         case EQUAL    : return l == r;
+    //         case NOTEQUAL : return l != r;
+    //     }
+    // }
 
 
-    void build_expr_stack (const ast::IAST* node, std::stack<Node_info>& pref_notation) {
-        assert (node);
+    // void build_expr_stack (const ast::IAST* node, std::stack<Node_info>& pref_notation) {
+    //     assert (node);
     
-        std::stack<Node_info> ().swap (pref_notation);
+    //     std::stack<Node_info> ().swap (pref_notation);
         
-        while (node->get_type () == type::OP) {
-            auto r = node->get_right ();
-            auto l = node->get_left ();
-            assert (l);
-            assert (r);
+    //     while (node->get_type () == type::OP) {
+    //         auto r = node->get_right ();
+    //         auto l = node->get_left ();
+    //         assert (l);
+    //         assert (r);
 
-            pref_notation.push ({node, false});
-            if (r->get_type () == type::OP)
-                pref_notation.push ({r, true});
-            else if (r->get_type () == type::VAR || r->get_type () == type::VAL)
-                pref_notation.push ({r, false});
-            else 
-                assert (0);
+    //         pref_notation.push ({node, false});
+    //         if (r->get_type () == type::OP)
+    //             pref_notation.push ({r, true});
+    //         else if (r->get_type () == type::VAR || r->get_type () == type::VAL)
+    //             pref_notation.push ({r, false});
+    //         else 
+    //             assert (0);
 
-            node = l;
-        }
+    //         node = l;
+    //     }
 
-        pref_notation.push ({node, false});
-    }
-
-
-    double Interpreter::get_value (const ast::IAST* node) {
-        assert (node);
-        double res = 0;
-        if (node->get_type () == type::VAL)
-            res = node->get_val ();
-        else if (node->get_type () == type::VAR) {
-            auto find_res = var_value_.find (node->get_var ());
-            if (find_res == var_value_.end ()) {
-                printf ("unknown var %s\n", node->get_var ().c_str ());
-                abort ();
-            }
-            res = find_res->second;
-        }
-        else 
-            assert (0);
-
-        return res;
-    }
+    //     pref_notation.push ({node, false});
+    // }
 
 
-    double Interpreter::calculate_val (const ast::IAST* node) {
-        assert (node);
-        assert (node->get_type () != type::NAT);
+    // double Interpreter::get_value (const ast::IAST* node) {
+    //     assert (node);
+    //     double res = 0;
+    //     if (node->get_type () == type::VAL)
+    //         res = node->get_val ();
+    //     else if (node->get_type () == type::VAR) {
+    //         auto find_res = var_value_.find (node->get_var ());
+    //         if (find_res == var_value_.end ()) {
+    //             printf ("unknown var %s\n", node->get_var ().c_str ());
+    //             abort ();
+    //         }
+    //         res = find_res->second;
+    //     }
+    //     else 
+    //         assert (0);
 
-        struct Expr {
-            Expr (std::stack<Node_info> pref_notation, double value) : pref_notation_ (pref_notation), value_ (value) {}
-            std::stack<Node_info> pref_notation_;  // see polish prefix notation
-            double value_;              
-        };
-        std::stack<Expr> less_priority;     // need it when we calculate right subtree
+    //     return res;
+    // }
 
-        std::stack <Node_info> cur_pref_notation;
-        build_expr_stack (node, cur_pref_notation);
-        double right = 0;
-        double left  = get_value (cur_pref_notation.top ().node_);
-        cur_pref_notation.pop ();
-        bool visit = false;
 
-        for (;;) {
-            assert (node);
+    // double Interpreter::calculate_val (const ast::IAST* node) {
+    //     assert (node);
+    //     assert (node->get_type () != type::NAT);
 
-            if (cur_pref_notation.empty ()) {
-                if (less_priority.empty ())
-                    break;
+    //     struct Expr {
+    //         Expr (std::stack<Node_info> pref_notation, double value) : pref_notation_ (pref_notation), value_ (value) {}
+    //         std::stack<Node_info> pref_notation_;  // see polish prefix notation
+    //         double value_;              
+    //     };
+    //     std::stack<Expr> less_priority;     // need it when we calculate right subtree
+
+    //     std::stack <Node_info> cur_pref_notation;
+    //     build_expr_stack (node, cur_pref_notation);
+    //     double right = 0;
+    //     double left  = get_value (cur_pref_notation.top ().node_);
+    //     cur_pref_notation.pop ();
+    //     bool visit = false;
+
+    //     for (;;) {
+    //         assert (node);
+
+    //         if (cur_pref_notation.empty ()) {
+    //             if (less_priority.empty ())
+    //                 break;
                 
-                right = left;
-                cur_pref_notation = less_priority.top ().pref_notation_;
-                left = less_priority.top ().value_;
-                less_priority.pop ();
-            }
+    //             right = left;
+    //             cur_pref_notation = less_priority.top ().pref_notation_;
+    //             left = less_priority.top ().value_;
+    //             less_priority.pop ();
+    //         }
 
-            node  = cur_pref_notation.top ().node_;
-            visit = cur_pref_notation.top ().need_to_visit_;
-            cur_pref_notation.pop ();
+    //         node  = cur_pref_notation.top ().node_;
+    //         visit = cur_pref_notation.top ().need_to_visit_;
+    //         cur_pref_notation.pop ();
 
-            switch (node->get_type ()) {
-                default: abort ();
-                break;
+    //         switch (node->get_type ()) {
+    //             default: abort ();
+    //             break;
 
-                case type::OP:
-                    if (!visit) {
-                        using namespace op;
-                        switch (node->get_op ()) {
-                            default  : assert (0); break;
-                            case ADD : left += right; break;
-                            case SUB : left -= right; break;
-                            case MUL : left *= right; break;
-                            case DIV : left /= right; break;
-                        }
-                    }
-                    else {
-                        less_priority.push (Expr (cur_pref_notation, left));
-                        build_expr_stack (node, cur_pref_notation);
-                        left = get_value (cur_pref_notation.top().node_);
-                        cur_pref_notation.pop ();
-                    }
-                break;
+    //             case type::OP:
+    //                 if (!visit) {
+    //                     using namespace op;
+    //                     switch (node->get_op ()) {
+    //                         default  : assert (0); break;
+    //                         case ADD : left += right; break;
+    //                         case SUB : left -= right; break;
+    //                         case MUL : left *= right; break;
+    //                         case DIV : left /= right; break;
+    //                     }
+    //                 }
+    //                 else {
+    //                     less_priority.push (Expr (cur_pref_notation, left));
+    //                     build_expr_stack (node, cur_pref_notation);
+    //                     left = get_value (cur_pref_notation.top().node_);
+    //                     cur_pref_notation.pop ();
+    //                 }
+    //             break;
 
-                case type::VAL:
-                case type::VAR:
-                    right = get_value (node);
-                break;
-            }
-        }
+    //             case type::VAL:
+    //             case type::VAR:
+    //                 right = get_value (node);
+    //             break;
+    //         }
+    //     }
 
-        return left;
-    }
+    //     return left;
+    // }
     
 
-    void Interpreter::update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable) {
-        assert (var_list);
-        assert (var_list->get_type () == VAR);
+    // void Interpreter::update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable) {
+    //     assert (var_list);
+    //     assert (var_list->get_type () == VAR);
 
-        auto var_str = var_list->get_var ();
+    //     auto var_str = var_list->get_var ();
 
-        if (var_str[0] == '*') {
-            for (const auto& elem : var_value_) {
-                auto find_res = old_htable.find (elem.first);
-                if (find_res != old_htable.end ())
-                    find_res->second = elem.second;
-            }
-        }
-        else {
-            unsigned begin = 0;
-            unsigned end   = 0;
-            while (var_str.length () > end) {
-                while (var_str[end] != ',' && var_str[end] != '\0')
-                    end++;
+    //     if (var_str[0] == '*') {
+    //         for (const auto& elem : var_value_) {
+    //             auto find_res = old_htable.find (elem.first);
+    //             if (find_res != old_htable.end ())
+    //                 find_res->second = elem.second;
+    //         }
+    //     }
+    //     else {
+    //         unsigned begin = 0;
+    //         unsigned end   = 0;
+    //         while (var_str.length () > end) {
+    //             while (var_str[end] != ',' && var_str[end] != '\0')
+    //                 end++;
 
-                std::string var (var_str, begin, end - begin);
-                end++;
-                begin = end;
+    //             std::string var (var_str, begin, end - begin);
+    //             end++;
+    //             begin = end;
 
-                auto find_res = var_value_.find (var);
-                assert (find_res != var_value_.end ());
-                auto find_res_old = old_htable.find(var);
-                if (find_res_old != old_htable.end ())
-                    find_res_old->second = find_res->second;
-            }
-        }
+    //             auto find_res = var_value_.find (var);
+    //             assert (find_res != var_value_.end ());
+    //             auto find_res_old = old_htable.find(var);
+    //             if (find_res_old != old_htable.end ())
+    //                 find_res_old->second = find_res->second;
+    //         }
+    //     }
 
-        var_value_ = old_htable;
-    }
+    //     var_value_ = old_htable;
+    // }
 
 
-    void Interpreter::create_htable (const ast::IAST* var_list) {
-        assert (var_list);
-        assert (var_list->get_type () == VAR);
+    // void Interpreter::create_htable (const ast::IAST* var_list) {
+    //     assert (var_list);
+    //     assert (var_list->get_type () == VAR);
 
-        auto var_str = var_list->get_var ();
-        auto old_htable = var_value_;
-        var_value_.clear ();
+    //     auto var_str = var_list->get_var ();
+    //     auto old_htable = var_value_;
+    //     var_value_.clear ();
 
-        unsigned begin = 0;
-        unsigned end   = 0;
-        while (var_str.length () > end) {
-            if (var_str[begin] == '*') {
-                var_value_ = old_htable;
-                break;
-            }
-            while (end < var_str.length () && var_str[end] != ',')
-                end++;
+    //     unsigned begin = 0;
+    //     unsigned end   = 0;
+    //     while (var_str.length () > end) {
+    //         if (var_str[begin] == '*') {
+    //             var_value_ = old_htable;
+    //             break;
+    //         }
+    //         while (end < var_str.length () && var_str[end] != ',')
+    //             end++;
 
-            std::string var (var_str, begin, end - begin);
-            end++;
-            begin = end;
+    //         std::string var (var_str, begin, end - begin);
+    //         end++;
+    //         begin = end;
 
-            auto find_res = old_htable.find (var);
-            if (find_res == old_htable.end ()) {
-                printf ("\nunknown var '%s' in capture block\n", var.c_str ());
-                abort ();
-            }
-            else
-                var_value_.insert (std::make_pair (var, find_res->second));
-        }
+    //         auto find_res = old_htable.find (var);
+    //         if (find_res == old_htable.end ()) {
+    //             printf ("\nunknown var '%s' in capture block\n", var.c_str ());
+    //             abort ();
+    //         }
+    //         else
+    //             var_value_.insert (std::make_pair (var, find_res->second));
+    //     }
 
-    }
+    // }
 
 
     // Interpreter& Interpreter::operator= (const Interpreter& that) {
