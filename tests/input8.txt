@@ -1,0 +1,7 @@
+first = 2;
+second = 2;;		;;
+if (first <= second) capture (first, second)
+	tmp = first * 2;
+	second = tmp;
+endif
+result = second;
