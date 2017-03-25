@@ -219,11 +219,11 @@ namespace parser {
     IAST* Parser::code_parse () {
         static int controller = 0;
         ++controller;
-        
-        auto cur_lexem = lxr_.get_cur_lexem ();
+       
         if (controller > 1)
         {
             auto tree = function_parse ();
+            auto cur_lexem = lxr_.get_cur_lexem ();
             while (!cur_lexem.is_closing_operator ()) {
                 if (cur_lexem.is_semicolon ()) {
                     lxr_.next_lexem ();
@@ -241,6 +241,7 @@ namespace parser {
         }
         else
         {
+            auto cur_lexem = lxr_.get_cur_lexem ();
             if (cur_lexem.is_closing_operator ())
             {
                 last_part_ = nullptr;
