@@ -1,5 +1,4 @@
 #include "parser.h"
-#include "operator.h"
 #include <cassert>
 #include <list>
 
@@ -28,6 +27,11 @@ namespace parser {
     {
         if (parts_.empty ())
             return;
+        if (endwhile_poped)
+        {
+            endwhile_poped = false;
+            repetitive_.pop ();
+        }
         auto tmp = parts_.top ();
         parts_.pop ();
         while (1)
@@ -35,7 +39,7 @@ namespace parser {
             if (parts_.empty ())
                 return;
             if  (tmp->get_type () == VAL || tmp->get_type () == VAR ||
-                tmp->get_op () != op::ENDWHILE  || tmp->get_op () != op::ENDIF)
+                (tmp->get_op () != op::ENDWHILE  && tmp->get_op () != op::ENDIF))
             {
                 tmp = parts_.top ();
                 parts_.pop ();
@@ -128,6 +132,8 @@ namespace parser {
 
     IAST const* Parser::get_next ()
     {
+        if (endwhile_poped)
+            endwhile_poped = false;
         if (parts_.empty ())
         {
             build();
@@ -213,10 +219,10 @@ namespace parser {
     IAST* Parser::code_parse () {
         static int controller = 0;
         ++controller;
-    
+        
         if (controller > 1)
         {
-            auto tree = function_parse ();//
+            auto tree = function_parse ();
             auto cur_lexem = lxr_.get_cur_lexem ();
             while (!cur_lexem.is_closing_operator ()) {
                 if (cur_lexem.is_semicolon ()) {
@@ -234,12 +240,17 @@ namespace parser {
             return tree;
         }
         else
-        {
+        {   
             auto cur_lexem = lxr_.get_cur_lexem ();
             if (cur_lexem.is_closing_operator ())
             {
                 last_part_ = nullptr;
                 return nullptr;
+            }
+            while (cur_lexem.is_semicolon ()) //skip semicolons
+            {
+                lxr_.next_lexem ();
+                cur_lexem = lxr_.get_cur_lexem ();
             }
             auto tree = function_parse ();
             --controller;

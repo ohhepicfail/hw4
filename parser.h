@@ -25,7 +25,8 @@ namespace parser {
         IAST    const *last_part_ = nullptr;
     
         unsigned    cur_deep_diff_ = 0;
-        bool        deep_decreased_ = false; 
+        bool        deep_decreased_ = false, 
+                    endwhile_poped = false; 
         Status      status_;
         std::stack<const ast::IAST*> expr_;
         std::stack<const ast::IAST*> repetitive_;
