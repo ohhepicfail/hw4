@@ -1,8 +1,0 @@
-a = 1;
-if (a) 
-	if (10)
-		a = a + 1;
-	endif;
-	a = a * 2;
-endif;
-result = a;

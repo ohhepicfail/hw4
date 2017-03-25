@@ -1,2 +1,2 @@
-result 40.000000
+result 40
 tests/input/input15.txt

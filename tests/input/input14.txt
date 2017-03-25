@@ -1,8 +1,8 @@
 a = 1;
-b = 3;
-caca = 4;
-baobab = 1;
-while (a + b + caca < 10 * baobab) capture (a,b) {
-	caca = caca * 2;
-}
-result = caca;
+b = 1;
+
+if (a == b) capture ()
+	a = 2;
+	b = 3;
+endif
+result = b;

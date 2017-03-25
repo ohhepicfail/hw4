@@ -4,5 +4,5 @@ if (a)
 		a = a + 1;
 	endif;
 	a = a * 2;
-endif;
+endif
 result = a;
