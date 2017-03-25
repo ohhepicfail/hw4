@@ -39,7 +39,7 @@ namespace parser {
             if (parts_.empty ())
                 return;
             if  (tmp->get_type () == VAL || tmp->get_type () == VAR ||
-                tmp->get_op () != op::ENDWHILE  || tmp->get_op () != op::ENDIF)
+                (tmp->get_op () != op::ENDWHILE  && tmp->get_op () != op::ENDIF))
             {
                 tmp = parts_.top ();
                 parts_.pop ();
