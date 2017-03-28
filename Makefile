@@ -1,10 +1,16 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -pedantic -Werror -Wno-return-local-addr -std=c++14 -g3 -Wswitch-default -Wmaybe-uninitialized -Wredundant-decls ${ADD_CXXFLAGS}
 
-all: compile_cfg clean
+all: compile_cfg main_get_expr_test clean
 
 compile_cfg: main_cfg_test.o ast.o parser.o lexer.o ssa.o operator.o lexem.o
 	$(CXX) $(CXXFLAGS) main_cfg_test.o ast.o parser.o ssa.o lexer.o operator.o lexem.o -o cfg
+
+main_get_expr_test: main_get_expr_test.o
+	$(CXX) $(CXXFLAGS) main_get_expr_test.o ast.o parser.o ssa.o lexer.o operator.o lexem.o -o test
+	
+main_get_expr_test.o: main_get_expr_test.cpp
+	$(CXX) $(CXXFLAGS) -c main_get_expr_test.cpp
 
 main_cfg_test.o: main_cfg_test.cpp
 	$(CXX) $(CXXFLAGS) -c main_cfg_test.cpp
