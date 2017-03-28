@@ -5,7 +5,7 @@
 #include <string>
 #include "lexer.h"
 #include "ast.h"
-
+#include <unordered_map>
 
 using namespace lexem;
 using namespace ast;
@@ -31,8 +31,10 @@ namespace parser {
         std::stack<const ast::IAST*> expr_;
         std::stack<const ast::IAST*> repetitive_;
         std::stack<const ast::IAST*> parts_;
-        void work_on_cond_op (const IAST* node, op::Operator op_type); 
+        std::unordered_map<std::string, const ast::IAST*> funcs_;
         void fill_expr (const ast::IAST* node);
+        void extract_body (const ast::IAST*, op::Operator op_type);
+        void add_func (const ast::IAST* func);
 
         IAST* code_parse ();
         IAST* function_parse ();
@@ -63,6 +65,7 @@ namespace parser {
         
         IAST const* get_next (); 
         std::stack<const ast::IAST*>& get_next_expr ();
+        void load_func (const std::string& name);
         void repeat ();
         void skip ();
         bool deep_decreased ();

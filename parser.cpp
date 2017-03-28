@@ -19,7 +19,7 @@ namespace parser {
     void Parser::repeat ()
     {
         assert (!repetitive_.empty ());
-        work_on_cond_op (repetitive_.top (), op::WHILE);
+        extract_body (repetitive_.top (), op::WHILE);
         repetitive_.pop ();
     }
 
@@ -39,7 +39,7 @@ namespace parser {
             if (parts_.empty ())
                 return;
             if  (tmp->get_type () == VAL || tmp->get_type () == VAR ||
-                (tmp->get_op () != op::ENDWHILE  && tmp->get_op () != op::ENDIF))
+                (tmp->get_op () != op::ENDWHILE  && tmp->get_op () != op::ENDIF && tmp->get_op () != op::ENDFUNC))
             {
                 tmp = parts_.top ();
                 parts_.pop ();
@@ -54,11 +54,26 @@ namespace parser {
         return expr_;
     }
 
+    void Parser::load_func (const std::string& name)
+    {
+        auto iter = funcs_.find (name);
+        if (iter == funcs_.end ())
+            assert (!"bad_func_name");
+        extract_body (iter->second, op::FUNCTION);
+        parts_.pop ();
+    }
+
+    void Parser::add_func (const ast::IAST* func)
+    {
+        assert (func);
+        assert (std::get<1> (funcs_.insert (std::pair<const std::string, const ast::IAST*> (func->get_left ()->get_var (), func))));
+    }
+
     void Parser::fill_expr (const ast::IAST* node)
     {
+        assert (node);
         std::stack<const ast::IAST*>().swap (expr_);
         std::stack<const ast::IAST*> carry;
-        assert (node);
         while (1)
         {
             if (node->get_type () == Type::OP)
@@ -97,22 +112,26 @@ namespace parser {
         }
     }
 
-    void Parser::work_on_cond_op (const ast::IAST *node, op::Operator op_type)
+    void Parser::extract_body (const ast::IAST* node, op::Operator op_type)
     {
-        assert(op_type == IF || op_type == WHILE);
-        if (op_type == WHILE)
+        assert (node);
+        assert (op_type == IF || op_type == WHILE || op_type == FUNCTION);
+        switch (op_type)
         {
-            assert (node);
-            repetitive_.push (node);
-            parts_.push (new Op_AST (op::ENDWHILE, nullptr, nullptr));
+            case WHILE:     assert (node);
+                            repetitive_.push (node);
+                            parts_.push (new Op_AST (op::ENDWHILE, nullptr, nullptr));
+                            break;
+            case IF:        parts_.push (new Op_AST (op::ENDIF, nullptr, nullptr));
+                            break;
+            case FUNCTION:  parts_.push (new Op_AST (op::ENDFUNC, nullptr, nullptr));
+                            break;
+            default:        assert (!"UNKNOWN");
         }
-        else
-            parts_.push (new Op_AST (op::ENDIF, nullptr, nullptr));
-        
         auto tmp = node->get_right ()->get_right ();
         auto type = tmp->get_op ();
-        bool broken = false;
-        while (!broken)
+        bool from_default = false;
+        while (!from_default)
         {
             switch (type)
             {
@@ -122,12 +141,15 @@ namespace parser {
                             break;
 
                 default:    parts_.push (tmp);
-                            broken = true;
+                            from_default = true;
                             break;
             }
-        } 
+        }
         parts_.push (node->get_right ()->get_left ());
-        fill_expr (node->get_left ()); 
+        if (op_type == FUNCTION)
+            parts_.push (node->get_left ());
+        else
+            fill_expr (node->get_left ()); 
     }
 
     IAST const* Parser::get_next ()
@@ -146,13 +168,17 @@ namespace parser {
                                 fill_expr (last_part_->get_right ());
                                 return last_part_;
 
-                case IF:        work_on_cond_op (last_part_, op::IF); 
+                case IF:        extract_body (last_part_, op::IF); 
                                 return last_part_;
 
-                case WHILE:     work_on_cond_op (last_part_, op::WHILE);
+                case WHILE:     extract_body (last_part_, op::WHILE);
                                 return last_part_;
             
-                default:        assert(!"expect IF, WHILE or ASSIGN here");
+                case FUNCTION:  add_func (last_part_);
+                                extract_body (last_part_, op::FUNCTION);
+                                return last_part_;
+
+                default:        assert(!"expect IF, WHILE, FUNCTION or ASSIGN here");
             }
         }
         else
@@ -169,10 +195,10 @@ namespace parser {
                                 fill_expr (tmp->get_right ());
                                 return tmp;
 
-                case IF:        work_on_cond_op (tmp, op::IF);
+                case IF:        extract_body (tmp, op::IF);
                                 return tmp;
 
-                case WHILE:     work_on_cond_op (tmp, op::WHILE);
+                case WHILE:     extract_body (tmp, op::WHILE);
                                 return tmp;
                 
                 case ENDWHILE:
@@ -185,7 +211,7 @@ namespace parser {
                                 {
                                     tmp = parts_.top ();
                                     cur_type = tmp->get_op ();
-                                    if (cur_type == ENDIF || cur_type == ENDWHILE /*|| cur_type == ENDFUNC*/)
+                                    if (cur_type == ENDIF || cur_type == ENDWHILE)
                                     {
                                         delete tmp;
                                         ++cur_deep_diff_;
@@ -195,6 +221,8 @@ namespace parser {
                                         break;
                                 }
                                 return get_next ();
+
+                case ENDFUNC:   return tmp;
 
                 default:        return tmp;
 
