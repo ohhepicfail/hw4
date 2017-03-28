@@ -212,6 +212,8 @@ namespace parser {
             printf ("\nsyntax error at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
             abort ();
         }   
+        
+        root_->print ("tree.dot");
 
         return;
     } 
@@ -516,7 +518,7 @@ namespace parser {
         if (cur_lexem.get_type () == VAL)
             res = val_parse ();
         else if (cur_lexem.get_type () == VAR)
-            res = var_parse ();
+            res = func_call_parse ();
         else if (cur_lexem.is_sub ())     // negation
             return new Val_AST (0);
         else 
@@ -559,6 +561,19 @@ namespace parser {
         lxr_.next_lexem ();
 
         return new Val_AST (cur_lexem.get_val ());
+    }
+
+
+    IAST* Parser::func_call_parse () {
+        auto func_name = var_parse ();
+        auto cur_lexem = lxr_.get_cur_lexem ();
+
+        if (!cur_lexem.is_open_bracket ())
+            return func_name;       // variable
+
+        std::string var_list;
+        get_var_list (var_list);
+        return new Op_AST (CALL, func_name, new Var_AST (var_list));        
     }
 
 

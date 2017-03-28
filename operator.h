@@ -36,6 +36,7 @@ namespace op {
         OBRACE,
         CBRACE,
         FUNCTION,
+        CALL,
         NAP
     };
 
