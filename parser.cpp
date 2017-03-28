@@ -54,11 +54,16 @@ namespace parser {
         return expr_;
     }
 
-    void Parser::load_func (const std::string& name)
+    void Parser::load_func (const ast::IAST* func)
     {
-        auto iter = funcs_.find (name);
+        assert (func);
+        assert (func->get_type () == OP && func->get_op () == op::CALL);
+        auto iter = funcs_.find (func->get_left ()->get_var ());
         if (iter == funcs_.end ())
-            assert (!"bad_func_name");
+        {
+            printf ("Function '%s' was not defined yet\n", func->get_left ()->get_var ().data ());
+            abort ();
+        }
         extract_body (iter->second, op::FUNCTION);
         parts_.pop ();
     }

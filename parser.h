@@ -65,7 +65,7 @@ namespace parser {
         
         IAST const* get_next (); 
         std::stack<const ast::IAST*>& get_next_expr ();
-        void load_func (const std::string& name);
+        void load_func (const ast::IAST* func);
         void repeat ();
         void skip ();
         bool deep_decreased ();
