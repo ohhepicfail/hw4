@@ -49,6 +49,7 @@ namespace parser {
         IAST* capture_parse (const IAST* cond_vars = nullptr);
         IAST* func_param_parse ();
         IAST* vlvr_parse ();
+        IAST* func_call_parse ();
         IAST* val_parse ();
         IAST* var_parse ();
 
