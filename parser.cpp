@@ -100,6 +100,12 @@ namespace parser {
                                     node = carry.top ();
                                     carry.pop ();
                                     break;
+                    case CALL:  expr_.push (node);
+                                if (carry.empty ())
+                                    return;
+                                node = carry.top ();
+                                carry.pop ();
+                                break;                
                     default:    expr_.push (node);
                                 carry.push (node->get_left ());
                                 node = node->get_right ();
@@ -180,8 +186,13 @@ namespace parser {
                                 return last_part_;
             
                 case FUNCTION:  add_func (last_part_);
-                                extract_body (last_part_, op::FUNCTION);
-                                return last_part_;
+                                if (status_ == TRANSLATOR)
+                                {
+                                    extract_body (last_part_, op::FUNCTION);
+                                    return last_part_;
+                                }
+                                else
+                                    return get_next ();
 
                 default:        assert(!"expect IF, WHILE, FUNCTION or ASSIGN here");
             }
