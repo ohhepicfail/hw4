@@ -5,7 +5,7 @@
 #include <string>
 #include "lexer.h"
 #include "ast.h"
-
+#include <unordered_map>
 
 using namespace lexem;
 using namespace ast;
@@ -31,8 +31,10 @@ namespace parser {
         std::stack<const ast::IAST*> expr_;
         std::stack<const ast::IAST*> repetitive_;
         std::stack<const ast::IAST*> parts_;
-        void work_on_cond_op (const IAST* node, op::Operator op_type); 
+        std::unordered_map<std::string, const ast::IAST*> funcs_;
         void fill_expr (const ast::IAST* node);
+        void extract_body (const ast::IAST*, op::Operator op_type);
+        void add_func (const ast::IAST* func);
 
         IAST* code_parse ();
         IAST* function_parse ();
@@ -53,6 +55,7 @@ namespace parser {
 
         void get_all_subtree_var (const IAST* subtree, std::string& res_var);
         void get_var_list (std::string& res_var_list);
+        void get_func_params (std::string& func_params);
 
     public:
         explicit Parser (const char* filename, Status status) : lxr_ (filename), status_(status) {}
@@ -63,7 +66,8 @@ namespace parser {
         Parser& operator= (Parser&& that);
         
         IAST const* get_next (); 
-        std::stack<const ast::IAST*>& get_next_expr ();
+        std::stack<const ast::IAST*>&& get_next_expr ();
+        void load_func (const ast::IAST* func);
         void repeat ();
         void skip ();
         bool deep_decreased ();
