@@ -18,125 +18,89 @@ namespace ipr {
 
 
     void Interpreter::calculate () {
-        struct scope_data {
-            scope_data (decltype (var_value_) hash_table, decltype (parser_.get_next ()) var_list) : 
+        struct scope_args {
+            scope_args (decltype (var_value_) hash_table, decltype (parser_.get_next ()) var_list) : 
                                                         htable_ (hash_table)
                                                       , var_list_ (var_list) {} 
             decltype (var_value_) htable_;
             decltype (parser_.get_next ()) var_list_;
         };
-        enum Label {
-            IF_B,
-            IF_C,
-            WHILE_B,
-            WHILE_C,
-            ASSIGN_B,  
-            ENDIF_B,
-            ENDWHILE_B,
-            ENDWHILE_C,
-            ENDFUNC_B
-        };
-        struct function_data {
+        struct function_args {
             std::remove_reference<decltype (parser_.get_next_expr ())>::type expr_;
             std::stack<double> helper_;
             decltype (var_value_) htable_;
-            Label upper_level_;
-            function_data (decltype (expr_) expr
+            decltype (parser_.get_next ()) dst_;
+            decltype (parser_.get_next ()) var_;
+            function_args (decltype (expr_) expr
                          , decltype (helper_) intermediate
                          , decltype (htable_) htable
-                         , decltype (upper_level_) up_l) :
+                         , decltype (dst_) dst
+                         , decltype (var_) var) :
                         expr_ (expr), 
                         helper_ (intermediate),
                         htable_ (htable),
-                        upper_level_ (up_l) {}
+                        dst_ (dst),
+                        var_ (var) {}
         };
         
-        std::stack <scope_data> scope;
-        std::stack<function_data> func_data;
-        auto cur_node = parser_.get_next ();
-    
-        auto call_func = [&func_data, this] (decltype (function_data::expr_)& expr
-                                           , decltype (function_data::helper_)& intermediate
-                                           , decltype (function_data::upper_level_) up_l) {
-            parser_.load_func (expr.top ());
-            expr.pop ();
-            func_data.push (function_data (expr, intermediate, var_value_, up_l));
-            
-            auto cur_node = parser_.get_next ();
-            create_htable (cur_node);
-        };
-
+        std::stack <scope_args> scope;
+        std::stack<function_args> func_data;
         bool from_func = false; 
         std::remove_reference<decltype (parser_.get_next_expr ())>::type expr;
         std::stack<double> intermediate_st; 
+        auto cur_node = parser_.get_next ();
+        decltype (parser_.get_next ()) var = nullptr;
+    
+        auto call_func = [&func_data, &expr, &intermediate_st, &var, this] (decltype (function_args::dst_) dst) {
+            auto func_id = expr.top ();
+            expr.pop ();
+            auto input_args = expr.top ();
+            expr.pop ();
+
+            parser_.load_func (func_id);
+            func_data.push (function_args (expr, intermediate_st, var_value_, dst, var));
+            auto pnames = parser_.get_next ();
+            create_func_htable (input_args, pnames);
+        };
 
         auto cleanup = [&expr, &intermediate_st] {
             decltype (expr) ().swap (expr);
             decltype (intermediate_st) ().swap (intermediate_st);
         };
 
-        auto print = [] (std::remove_reference<decltype (parser_.get_next_expr ())>::type expr) {
-            std::cout << "printing stack\n";
-            while (!expr.empty ()) {
-                auto tmp = expr.top ();
-                switch (tmp->get_type ()) {
-                    default: assert (0); break;
-                    case type::VAL: std::cout << "val " << tmp->get_val () << std::endl; break;
-                    case type::VAR: std::cout << "var " << tmp->get_var () << std::endl; break;
-                    case type::OP : std::cout << "op " << op::string_eq (tmp->get_op ()) <<std::endl; break;
-                }
-                expr.pop ();
-            }
-            std::cout << "stack was printed\n";
-        };
-
-        Label cur_label;
-
         for (;;) {
             if (cur_node->get_type () != type::OP) {
                 printf ("Statement has no effect\n");
                 abort ();
             }
-            if (!from_func) {
-                switch (cur_node->get_op ()) {
-                    default: assert (0); break;
-                    case op::WHILE:     cur_label = WHILE_B; break;
-                    case op::IF:        cur_label = IF_B; break;
-                    case op::ENDIF:     cur_label = ENDIF_B; break;
-                    case op::ENDWHILE:  cur_label = ENDWHILE_B; break;
-                    case op::ENDFUNC:   cur_label = ENDFUNC_B; break;
-                    case op::ASSIGN:    cur_label = ASSIGN_B; break;
-                }
-            }
-            switch (cur_label) {
+            switch (cur_node->get_op ()) {
                 default:
                     assert (0);
                 break;
 
-                case WHILE_B:
-                case IF_B:
-                    cleanup ();
-                    expr = parser_.get_next_expr ();
-                case IF_C:
-                case WHILE_C: {
+                case WHILE:
+                case IF: {
+                    if (!from_func) {
+                        cleanup ();
+                        expr = parser_.get_next_expr ();
+                    }
                     auto completed = calculate_expr (expr, intermediate_st);
                     if (!completed) {
-                        print (expr);
                         auto unit = expr.top ();
                         assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
-                        call_func (expr, intermediate_st, cur_label == IF_B || cur_label == IF_C ? IF_C : WHILE_C);
+                        call_func (cur_node);
                         break;
                     }
                     if (intermediate_st.top ()) {
                         cur_node = parser_.get_next ();
-                        scope.push (scope_data (var_value_, cur_node));
+                        scope.push (scope_args (var_value_, cur_node));
                         create_htable (cur_node);                
                     }
                     else
                         parser_.skip ();
                 } break;
 
-                case ENDIF_B: {
+                case ENDIF: {
                     if (scope.empty ()) {
                         printf ("without previous if\n");
                         abort ();
@@ -145,21 +109,22 @@ namespace ipr {
                     scope.pop ();
                 } break;
 
-                case ENDWHILE_B:
-                    if (scope.empty ()) {
-                        printf ("without previous while\n");
-                        abort ();
-                    }
+                case ENDWHILE: {
+                    if (!from_func) {
+                        if (scope.empty ()) {
+                            printf ("without previous while\n");
+                            abort ();
+                        }
 
-                    parser_.repeat ();
-                    cleanup ();
-                    expr = parser_.get_next_expr ();
-                case ENDWHILE_C: {
+                        parser_.repeat ();
+                        cleanup ();
+                        expr = parser_.get_next_expr ();
+                    }
                     auto completed = calculate_expr (expr, intermediate_st);
                     if (!completed) {
                         auto unit = expr.top ();
                         assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
-                        call_func (expr, intermediate_st, ENDWHILE_C);
+                        call_func (cur_node);
                         break;
                     }
 
@@ -173,35 +138,43 @@ namespace ipr {
                     
                 } break;
 
-                case ENDFUNC_B: {
+                case ENDFUNC: {
                     from_func = true;
 
                     auto find_res = var_value_.find ("result");
                     if (find_res == var_value_.end ()) {
-                        printf ("No variable 'result'\n");
+                        printf ("No variable 'result' in function\n");
                         abort ();
                     }
-                    std::cout << "func result " << find_res->second << std::endl;
+                    auto res = find_res->second;
+
                     expr = func_data.top ().expr_;
-                    print (expr);
                     intermediate_st = func_data.top ().helper_;
                     var_value_ = func_data.top ().htable_;
-                    cur_label = func_data.top ().upper_level_;
+                    cur_node = func_data.top ().dst_;
+                    var = func_data.top ().var_;
                     func_data.pop ();
-                    std::cout << expr.empty () << std::endl;
-                    intermediate_st.push (find_res->second);
+
+                    intermediate_st.push (res);
                 continue;
                 } break;
 
-                case ASSIGN_B: {
-                    auto var = parser_.get_next ();
-                    assert (var);
-                    assert (var->get_type () == type::VAR); 
+                case ASSIGN: {
+                    if (!from_func) {
+                        var = parser_.get_next ();
+                        assert (var);
+                        assert (var->get_type () == type::VAR); 
 
-                    cleanup ();
-                    expr = parser_.get_next_expr ();
+                        cleanup ();
+                        expr = parser_.get_next_expr ();
+                    }
                     auto completed = calculate_expr (expr, intermediate_st);
-                    assert (completed);
+                    if (!completed) {
+                        auto unit = expr.top ();
+                        assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
+                        call_func (cur_node);
+                        break;
+                    }
                     auto res = intermediate_st.top ();
                     auto find_res = var_value_.find (var->get_var ());
                     if (find_res == var_value_.end ())
@@ -213,6 +186,7 @@ namespace ipr {
             }
             
             from_func = false;
+            var = nullptr;
             cur_node = parser_.get_next ();
             if (!cur_node)
                 break;
@@ -313,6 +287,81 @@ namespace ipr {
         }
 
         var_value_ = old_htable;
+    }
+
+    
+    void Interpreter::create_func_htable (const ast::IAST* args, const ast::IAST* params) {
+        assert (args);
+        assert (params);
+        assert (args->get_type () == type::VAR);
+        assert (params->get_type () == type::VAR);
+
+        auto args_str   = args->get_var ();
+        auto params_str = params->get_var ();
+        auto old_htable = var_value_;
+        var_value_.clear ();
+        
+        unsigned args_beg = 0;
+        unsigned args_end = 0;
+        unsigned param_beg = 0;
+        unsigned param_end = 0;
+        for (;;) {
+            while (params_str.length () > param_end && params_str[param_end] != ',')
+                param_end++;
+            
+            auto args_type = type::NAT;
+            while (args_str.length () > args_end && args_str[args_end] != ',') {
+                if ((isalpha (args_str[args_end]) || args_str[args_end] == '-') && (args_type == type::NAT || args_type == type::VAR))
+                    args_type = VAR;
+                else if ((isdigit (args_str[args_end]) || args_str[args_end] == '.' || args_str[args_end] == '-') 
+                        && (args_type == type::NAT || args_type == type::VAL))
+                    args_type = VAL;  
+                else {
+                    printf ("bad args in function\n");
+                    abort ();
+                } 
+                args_end++;
+            }
+            
+            auto negation = false;
+            if (args_str[args_beg] == '-') {
+                negation = true;
+                args_beg++;
+            }
+            auto arg_len   = args_end -args_beg;
+            auto param_len = param_end - param_beg;
+            if (!param_len && !arg_len)
+                return;
+            else if (param_len && !arg_len) {
+                printf ("too few arguments to function\n");
+                abort ();
+            }
+            else if (!param_len && arg_len) {
+                printf ("too many arguments to function\n");
+                abort ();
+            }
+
+            std::string param (params_str, param_beg, param_len);
+            std::string arg (args_str, args_beg, arg_len);
+            param_beg = ++param_end;
+            args_beg = ++args_end;
+            
+            double number = 0;
+            if (args_type == VAR) {
+                auto find_res = old_htable.find (arg);
+                if (find_res == old_htable.end ()) {
+                    printf ("\nunknown var '%s'\n", arg.c_str ());
+                    abort ();
+                }
+                else
+                    number = find_res->second;
+                number = negation ? -number : number;
+            }
+            else 
+                number = std::stod (arg);
+            var_value_.insert (std::make_pair (param, number));
+        }
+
     }
 
 

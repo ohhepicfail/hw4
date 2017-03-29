@@ -15,6 +15,7 @@ namespace ipr {
         void   calculate ();
         bool   calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<double>& intermediate_st);
 
+        void create_func_htable (const ast::IAST* args, const ast::IAST* params); 
         void create_htable (const ast::IAST* var_list);
         void update_htable (const ast::IAST* var_list, decltype (var_value_) old_htable);
 
