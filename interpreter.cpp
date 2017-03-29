@@ -285,6 +285,15 @@ namespace ipr {
                     find_res_old->second = find_res->second;
             }
         }
+        auto find_var_result = var_value_.find ("result");
+        if (find_var_result != var_value_.end ()) {
+            auto find_in_old = old_htable.find ("result");
+            if (find_in_old == old_htable.end ())
+                old_htable.insert (std::make_pair ("result", find_var_result->second));
+            else
+                find_in_old->second = find_var_result->second;
+        }
+
 
         var_value_ = old_htable;
     }
