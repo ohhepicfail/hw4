@@ -683,8 +683,13 @@ namespace parser {
 
         lxr_.next_lexem ();
         cur_lexem = lxr_.get_cur_lexem ();
+        while (cur_lexem.get_type () == VAR || cur_lexem.get_type () == VAL || cur_lexem.is_sub ()) {
+            if (cur_lexem.is_sub ()) {
+                func_params += '-';
+                lxr_.next_lexem ();
+                cur_lexem = lxr_.get_cur_lexem ();
+            }
 
-        while (cur_lexem.get_type () == VAR || cur_lexem.get_type () == VAL) {
             if (cur_lexem.get_type () == VAR)
                 func_params += cur_lexem.get_var ();
             else
