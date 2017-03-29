@@ -1,0 +1,6 @@
+a = -1;
+function foo (b) { result = b + 1; }
+if (foo (-a) * foo (-a) > 0 / foo (100)) 
+    a = a + 2;
+endif
+result = a;

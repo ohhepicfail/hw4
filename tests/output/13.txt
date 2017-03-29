@@ -1,2 +1,2 @@
-result -1
-tests/input/input5.txt
+result 13
+tests/input/input20.txt
