@@ -1,15 +1,9 @@
 #include "interpreter.h"
 #include <list>
 #include <string>
+#include <iostream>
 
 namespace ipr {
-    // struct Node_info {
-    //     const ast::IAST*  node_;
-    //     bool need_to_visit_;
-    // };
-    
-    // std::stack<Node_info> build_expr_stack (const ast::IAST*  node);
-
 
     double Interpreter::run () {
         calculate ();
@@ -31,25 +25,108 @@ namespace ipr {
             decltype (var_value_) htable_;
             decltype (parser_.get_next ()) var_list_;
         };
+        enum Label {
+            IF_B,
+            IF_C,
+            WHILE_B,
+            WHILE_C,
+            ASSIGN_B,  
+            ENDIF_B,
+            ENDWHILE_B,
+            ENDWHILE_C,
+            ENDFUNC_B
+        };
+        struct function_data {
+            std::remove_reference<decltype (parser_.get_next_expr ())>::type expr_;
+            std::stack<double> helper_;
+            decltype (var_value_) htable_;
+            Label upper_level_;
+            function_data (decltype (expr_) expr
+                         , decltype (helper_) intermediate
+                         , decltype (htable_) htable
+                         , decltype (upper_level_) up_l) :
+                        expr_ (expr), 
+                        helper_ (intermediate),
+                        htable_ (htable),
+                        upper_level_ (up_l) {}
+        };
+        
         std::stack <scope_data> scope;
+        std::stack<function_data> func_data;
         auto cur_node = parser_.get_next ();
+    
+        auto call_func = [&func_data, this] (decltype (function_data::expr_)& expr
+                                           , decltype (function_data::helper_)& intermediate
+                                           , decltype (function_data::upper_level_) up_l) {
+            parser_.load_func (expr.top ());
+            expr.pop ();
+            func_data.push (function_data (expr, intermediate, var_value_, up_l));
+            
+            auto cur_node = parser_.get_next ();
+            create_htable (cur_node);
+        };
+
+        bool from_func = false; 
+        std::remove_reference<decltype (parser_.get_next_expr ())>::type expr;
+        std::stack<double> intermediate_st; 
+
+        auto cleanup = [&expr, &intermediate_st] {
+            decltype (expr) ().swap (expr);
+            decltype (intermediate_st) ().swap (intermediate_st);
+        };
+
+        auto print = [] (std::remove_reference<decltype (parser_.get_next_expr ())>::type expr) {
+            std::cout << "printing stack\n";
+            while (!expr.empty ()) {
+                auto tmp = expr.top ();
+                switch (tmp->get_type ()) {
+                    default: assert (0); break;
+                    case type::VAL: std::cout << "val " << tmp->get_val () << std::endl; break;
+                    case type::VAR: std::cout << "var " << tmp->get_var () << std::endl; break;
+                    case type::OP : std::cout << "op " << op::string_eq (tmp->get_op ()) <<std::endl; break;
+                }
+                expr.pop ();
+            }
+            std::cout << "stack was printed\n";
+        };
+
+        Label cur_label;
+
         for (;;) {
             if (cur_node->get_type () != type::OP) {
                 printf ("Statement has no effect\n");
                 abort ();
             }
-            switch (cur_node->get_op ()) {
+            if (!from_func) {
+                switch (cur_node->get_op ()) {
+                    default: assert (0); break;
+                    case op::WHILE:     cur_label = WHILE_B; break;
+                    case op::IF:        cur_label = IF_B; break;
+                    case op::ENDIF:     cur_label = ENDIF_B; break;
+                    case op::ENDWHILE:  cur_label = ENDWHILE_B; break;
+                    case op::ENDFUNC:   cur_label = ENDFUNC_B; break;
+                    case op::ASSIGN:    cur_label = ASSIGN_B; break;
+                }
+            }
+            switch (cur_label) {
                 default:
                     assert (0);
                 break;
 
-                case op::WHILE:
-                case op::IF: {
-                    auto expr = parser_.get_next_expr ();
-                    std::stack<double> intermediate_st;
+                case WHILE_B:
+                case IF_B:
+                    cleanup ();
+                    expr = parser_.get_next_expr ();
+                case IF_C:
+                case WHILE_C: {
                     auto completed = calculate_expr (expr, intermediate_st);
-                    assert (completed);
-                
+                    if (!completed) {
+                        print (expr);
+                        auto unit = expr.top ();
+                        assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
+                        call_func (expr, intermediate_st, cur_label == IF_B || cur_label == IF_C ? IF_C : WHILE_C);
+                        break;
+                    }
                     if (intermediate_st.top ()) {
                         cur_node = parser_.get_next ();
                         scope.push (scope_data (var_value_, cur_node));
@@ -59,7 +136,7 @@ namespace ipr {
                         parser_.skip ();
                 } break;
 
-                case op::ENDIF: {
+                case ENDIF_B: {
                     if (scope.empty ()) {
                         printf ("without previous if\n");
                         abort ();
@@ -68,17 +145,23 @@ namespace ipr {
                     scope.pop ();
                 } break;
 
-                case op::ENDWHILE: {
+                case ENDWHILE_B:
                     if (scope.empty ()) {
                         printf ("without previous while\n");
                         abort ();
                     }
 
                     parser_.repeat ();
-                    auto expr = parser_.get_next_expr ();
-                    std::stack<double> intermediate_st;
+                    cleanup ();
+                    expr = parser_.get_next_expr ();
+                case ENDWHILE_C: {
                     auto completed = calculate_expr (expr, intermediate_st);
-                    assert (completed);
+                    if (!completed) {
+                        auto unit = expr.top ();
+                        assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
+                        call_func (expr, intermediate_st, ENDWHILE_C);
+                        break;
+                    }
 
                     if (!intermediate_st.top ()) {
                         parser_.skip ();
@@ -90,42 +173,35 @@ namespace ipr {
                     
                 } break;
 
-                case op::ASSIGN: {
+                case ENDFUNC_B: {
+                    from_func = true;
+
+                    auto find_res = var_value_.find ("result");
+                    if (find_res == var_value_.end ()) {
+                        printf ("No variable 'result'\n");
+                        abort ();
+                    }
+                    std::cout << "func result " << find_res->second << std::endl;
+                    expr = func_data.top ().expr_;
+                    print (expr);
+                    intermediate_st = func_data.top ().helper_;
+                    var_value_ = func_data.top ().htable_;
+                    cur_label = func_data.top ().upper_level_;
+                    func_data.pop ();
+                    std::cout << expr.empty () << std::endl;
+                    intermediate_st.push (find_res->second);
+                continue;
+                } break;
+
+                case ASSIGN_B: {
                     auto var = parser_.get_next ();
                     assert (var);
                     assert (var->get_type () == type::VAR); 
 
-                    auto expr = parser_.get_next_expr ();
-                    std::stack<double> intermediate_st;
+                    cleanup ();
+                    expr = parser_.get_next_expr ();
                     auto completed = calculate_expr (expr, intermediate_st);
-                    
-                    // tern or func (because there is something different from +, -, *, /
-                    if (!completed) {       
-                        auto cond_result = intermediate_st.top ();
-                        intermediate_st.pop ();
-
-                        if (cond_result) {
-                            expr.pop ();         // ENDCOND
-                            calculate_expr (expr, intermediate_st);
-                            if (expr.top ()->get_op () == op::FUNCTION)
-                                assert (0);
-                            else if (expr.top ()->get_op () != op::ENDTRUE)
-                                assert (0);
-                                                   
-                        }
-                        else {
-                            while (expr.top ()->get_type () != type::OP
-                                || expr.top ()->get_op ()   != op::ENDTRUE)
-                                    expr.pop (); 
-                            expr.pop ();     // ENDTRUE;
-    
-                            calculate_expr (expr, intermediate_st);
-                            if (expr.top ()->get_op () == op::FUNCTION)
-                                assert (0);
-                            else if (expr.top ()->get_op () != op::ENDFALSE)
-                                assert (0);
-                        }
-                    }
+                    assert (completed);
                     auto res = intermediate_st.top ();
                     auto find_res = var_value_.find (var->get_var ());
                     if (find_res == var_value_.end ())
@@ -136,6 +212,7 @@ namespace ipr {
                 } break;
             }
             
+            from_func = false;
             cur_node = parser_.get_next ();
             if (!cur_node)
                 break;
@@ -167,8 +244,17 @@ namespace ipr {
                 } break;
 
                 case type::OP: {
-                    if (intermediate_st.size () <= 1)
-                        return false;               // bad op
+                    auto cur_op = unit->get_op ();
+                    if (cur_op == op::CALL || cur_op == op::TERN)
+                        return false;
+                    if (cur_op == op::ENDTRUE || cur_op == op::ENDFALSE)
+                        return true;
+                    if (cur_op == op::ENDCOND) {       // tern
+                        if (!intermediate_st.top ())            // if false
+                            for (;unit->get_type () != type::OP || unit->get_op () != op::ENDTRUE; unit = expr.top ())
+                                expr.pop ();
+                        break;                            
+                    }
                     auto right = intermediate_st.top ();
                     intermediate_st.pop ();
                     auto left  = intermediate_st.top ();
