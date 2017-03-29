@@ -50,8 +50,8 @@ namespace parser {
         }
     }
 
-    std::stack<const ast::IAST*>& Parser::get_next_expr () {
-        return expr_;
+    std::stack<const ast::IAST*>&& Parser::get_next_expr () {
+        return std::move(expr_);
     }
 
     void Parser::load_func (const ast::IAST* func)
@@ -100,7 +100,8 @@ namespace parser {
                                     node = carry.top ();
                                     carry.pop ();
                                     break;
-                    case CALL:  expr_.push (node);
+                    case CALL:  expr_.push (node->get_right ());
+                                expr_.push (node);
                                 if (carry.empty ())
                                     return;
                                 node = carry.top ();
