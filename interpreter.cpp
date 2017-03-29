@@ -1,18 +1,11 @@
 #include "interpreter.h"
 #include <list>
 #include <string>
+#include <iostream>
 
 namespace ipr {
-    struct Node_info {
-        const ast::IAST*  node_;
-        bool need_to_visit_;
-    };
-    
-    std::stack<Node_info> build_expr_stack (const ast::IAST*  node);
-
 
     double Interpreter::run () {
-        root_->print ("tree.dot");
         calculate ();
 
         auto find_res = var_value_.find ("result");
@@ -25,258 +18,239 @@ namespace ipr {
 
 
     void Interpreter::calculate () {
-        struct Program_data {
-            std::stack <const ast::IAST*> prog_;
-            std::unordered_map <std::string, double> var_htable_;
+        struct scope_args {
+            scope_args (decltype (var_value_) hash_table, decltype (parser_.get_next ()) var_list) : 
+                                                        htable_ (hash_table)
+                                                      , var_list_ (var_list) {} 
+            decltype (var_value_) htable_;
+            decltype (parser_.get_next ()) var_list_;
         };
-        std::stack <Program_data> scope;
+        struct function_args {
+            std::remove_reference<decltype (parser_.get_next_expr ())>::type expr_;
+            std::stack<double> helper_;
+            decltype (var_value_) htable_;
+            decltype (parser_.get_next ()) dst_;
+            decltype (parser_.get_next ()) var_;
+            function_args (decltype (expr_) expr
+                         , decltype (helper_) intermediate
+                         , decltype (htable_) htable
+                         , decltype (dst_) dst
+                         , decltype (var_) var) :
+                        expr_ (expr), 
+                        helper_ (intermediate),
+                        htable_ (htable),
+                        dst_ (dst),
+                        var_ (var) {}
+        };
         
-        const ast::IAST* cur_node = root_;
+        std::stack <scope_args> scope;
+        std::stack<function_args> func_data;
+        bool from_func = false; 
+        std::remove_reference<decltype (parser_.get_next_expr ())>::type expr;
+        std::stack<double> intermediate_st; 
+        auto cur_node = parser_.get_next ();
+        decltype (parser_.get_next ()) var = nullptr;
+    
+        auto call_func = [&func_data, &expr, &intermediate_st, &var, this] (decltype (function_args::dst_) dst) {
+            auto func_id = expr.top ();
+            expr.pop ();
+            auto input_args = expr.top ();
+            expr.pop ();
+
+            parser_.load_func (func_id);
+            func_data.push (function_args (expr, intermediate_st, var_value_, dst, var));
+            auto pnames = parser_.get_next ();
+            create_func_htable (input_args, pnames);
+        };
+
+        auto cleanup = [&expr, &intermediate_st] {
+            decltype (expr) ().swap (expr);
+            decltype (intermediate_st) ().swap (intermediate_st);
+        };
+
         for (;;) {
             if (cur_node->get_type () != type::OP) {
                 printf ("Statement has no effect\n");
                 abort ();
             }
             switch (cur_node->get_op ()) {
-
                 default:
                     assert (0);
                 break;
 
-
-                case op::CODE: {
-                    auto r = cur_node->get_right ();
-                    auto l = cur_node->get_left ();
-                    assert (r);
-                    assert (l);
-
-                    prog_nodes_.push (r);
-                    prog_nodes_.push (l);
-                } break;
-
-
-                case op::ASSIGN: {              // assign + tern
-                    auto var = cur_node->get_left ();
-                    assert (var);
-                    assert (var->get_type () == type::VAR);
-
-                    auto r = cur_node->get_right ();
-                    decltype (calculate_val (r)) res;
-
-                    if (r->get_type () == type::OP && r->get_op () == op::TERN) {
-                        cur_node = r->get_right ();
-                        assert (cur_node);
-
-                        if (calculate_cond (r->get_left ()))
-                            res = calculate_val (cur_node->get_left ());
-                        else
-                            res = calculate_val (cur_node->get_right ());      
+                case WHILE:
+                case IF: {
+                    if (!from_func) {
+                        cleanup ();
+                        expr = parser_.get_next_expr ();
+                    }
+                    auto completed = calculate_expr (expr, intermediate_st);
+                    if (!completed) {
+                        auto unit = expr.top ();
+                        assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
+                        call_func (cur_node);
+                        break;
+                    }
+                    if (intermediate_st.top ()) {
+                        cur_node = parser_.get_next ();
+                        scope.push (scope_args (var_value_, cur_node));
+                        create_htable (cur_node);                
                     }
                     else
-                        res = calculate_val (r);
+                        parser_.skip ();
+                } break;
 
+                case ENDIF: {
+                    if (scope.empty ()) {
+                        printf ("without previous if\n");
+                        abort ();
+                    }
+                    update_htable (scope.top ().var_list_, scope.top ().htable_);
+                    scope.pop ();
+                } break;
+
+                case ENDWHILE: {
+                    if (!from_func) {
+                        if (scope.empty ()) {
+                            printf ("without previous while\n");
+                            abort ();
+                        }
+
+                        parser_.repeat ();
+                        cleanup ();
+                        expr = parser_.get_next_expr ();
+                    }
+                    auto completed = calculate_expr (expr, intermediate_st);
+                    if (!completed) {
+                        auto unit = expr.top ();
+                        assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
+                        call_func (cur_node);
+                        break;
+                    }
+
+                    if (!intermediate_st.top ()) {
+                        parser_.skip ();
+                        update_htable (scope.top ().var_list_, scope.top ().htable_);
+                        scope.pop ();
+                    }
+                    else
+                        parser_.get_next ();    // skip capture
+                    
+                } break;
+
+                case ENDFUNC: {
+                    from_func = true;
+
+                    auto find_res = var_value_.find ("result");
+                    if (find_res == var_value_.end ()) {
+                        printf ("No variable 'result' in function\n");
+                        abort ();
+                    }
+                    auto res = find_res->second;
+
+                    expr = func_data.top ().expr_;
+                    intermediate_st = func_data.top ().helper_;
+                    var_value_ = func_data.top ().htable_;
+                    cur_node = func_data.top ().dst_;
+                    var = func_data.top ().var_;
+                    func_data.pop ();
+
+                    intermediate_st.push (res);
+                continue;
+                } break;
+
+                case ASSIGN: {
+                    if (!from_func) {
+                        var = parser_.get_next ();
+                        assert (var);
+                        assert (var->get_type () == type::VAR); 
+
+                        cleanup ();
+                        expr = parser_.get_next_expr ();
+                    }
+                    auto completed = calculate_expr (expr, intermediate_st);
+                    if (!completed) {
+                        auto unit = expr.top ();
+                        assert (unit->get_type () == type::OP && unit->get_op () == op::CALL);
+                        call_func (cur_node);
+                        break;
+                    }
+                    auto res = intermediate_st.top ();
                     auto find_res = var_value_.find (var->get_var ());
                     if (find_res == var_value_.end ())
                         var_value_.insert (std::make_pair (var->get_var (), res));
                     else
                         find_res->second = res;
+                    
                 } break;
-
-
-                case op::WHILE:
-                case op::IF: {
-                    if (!calculate_cond (cur_node->get_left ()))
-                        break;
-
-                    prog_nodes_.push (cur_node);        // we need var_list for update_htable () when the scope 
-                                                        // will be decreased
-                    cur_node = cur_node->get_right ();
-                    assert (cur_node);
-
-                    scope.push (Program_data {prog_nodes_, var_value_});
-
-                    std::stack <const ast::IAST*> ().swap (prog_nodes_);    // clear stack
-                    assert (prog_nodes_.empty ());
-
-                    create_htable (cur_node->get_left ());
-                    cur_node = cur_node->get_right ();
-                    continue;
-                } break;
-
-            }
-
-            for (;;) {
-                if (prog_nodes_.empty ()) {
-                    if (scope.empty ())
-                        return;
-
-                    auto tmp_prog_nodes = scope.top ().prog_;
-                    cur_node = tmp_prog_nodes.top ();
-                    tmp_prog_nodes.pop ();
-
-                    if (cur_node->get_op () == op::WHILE) 
-                        if (calculate_cond (cur_node->get_left ())) {
-                            cur_node = cur_node->get_right ()->get_right ();
-                            break;
-                        }
-
-                    prog_nodes_ = tmp_prog_nodes;
-
-                    cur_node = cur_node->get_right ()->get_left ();        // var_list for update_htable ()
-                    update_htable (cur_node, scope.top ().var_htable_);
-                    scope.pop ();
-                }
-           
-                if (prog_nodes_.empty ())
-                    continue;
-                cur_node = prog_nodes_.top ();
-                prog_nodes_.pop ();
-                break;
             }
             
-
-        }
-
-    }
-
-
-    bool Interpreter::calculate_cond (const ast::IAST* cond) {
-        assert (cond);
-
-        if (cond->get_type () != OP) 
-            return calculate_val (cond);
-
-        auto l = calculate_val (cond->get_left ());
-        auto r = calculate_val (cond->get_right ());
-
-        assert (cond->get_type () == type::OP);
-        auto oper = cond->get_op ();
-
-        using namespace op;
-        switch (oper) {
-            default       : printf ("\nunknown comparison operator\n"); abort (); break;
-            case MORE     : return l > r;
-            case MOREOREQ : return l >= r;
-            case LESS     : return l < r;
-            case LESSOREQ : return l <= r;
-            case EQUAL    : return l == r;
-            case NOTEQUAL : return l != r;
-        }
-    }
-
-
-    void build_expr_stack (const ast::IAST* node, std::stack<Node_info>& pref_notation) {
-        assert (node);
-    
-        std::stack<Node_info> ().swap (pref_notation);
-        
-        while (node->get_type () == type::OP) {
-            auto r = node->get_right ();
-            auto l = node->get_left ();
-            assert (l);
-            assert (r);
-
-            pref_notation.push ({node, false});
-            if (r->get_type () == type::OP)
-                pref_notation.push ({r, true});
-            else if (r->get_type () == type::VAR || r->get_type () == type::VAL)
-                pref_notation.push ({r, false});
-            else 
-                assert (0);
-
-            node = l;
-        }
-
-        pref_notation.push ({node, false});
-    }
-
-
-    double Interpreter::get_value (const ast::IAST* node) {
-        assert (node);
-        double res = 0;
-        if (node->get_type () == type::VAL)
-            res = node->get_val ();
-        else if (node->get_type () == type::VAR) {
-            auto find_res = var_value_.find (node->get_var ());
-            if (find_res == var_value_.end ()) {
-                printf ("unknown var %s\n", node->get_var ().c_str ());
-                abort ();
-            }
-            res = find_res->second;
-        }
-        else 
-            assert (0);
-
-        return res;
-    }
-
-
-    double Interpreter::calculate_val (const ast::IAST* node) {
-        assert (node);
-        assert (node->get_type () != type::NAT);
-
-        struct Expr {
-            Expr (std::stack<Node_info> pref_notation, double value) : pref_notation_ (pref_notation), value_ (value) {}
-            std::stack<Node_info> pref_notation_;  // see polish prefix notation
-            double value_;              
-        };
-        std::stack<Expr> less_priority;     // need it when we calculate right subtree
-
-        std::stack <Node_info> cur_pref_notation;
-        build_expr_stack (node, cur_pref_notation);
-        double right = 0;
-        double left  = get_value (cur_pref_notation.top ().node_);
-        cur_pref_notation.pop ();
-        bool visit = false;
-
-        for (;;) {
-            assert (node);
-
-            if (cur_pref_notation.empty ()) {
-                if (less_priority.empty ())
-                    break;
-                
-                right = left;
-                cur_pref_notation = less_priority.top ().pref_notation_;
-                left = less_priority.top ().value_;
-                less_priority.pop ();
-            }
-
-            node  = cur_pref_notation.top ().node_;
-            visit = cur_pref_notation.top ().need_to_visit_;
-            cur_pref_notation.pop ();
-
-            switch (node->get_type ()) {
-                default: abort ();
+            from_func = false;
+            var = nullptr;
+            cur_node = parser_.get_next ();
+            if (!cur_node)
                 break;
+        }
 
-                case type::OP:
-                    if (!visit) {
-                        using namespace op;
-                        switch (node->get_op ()) {
-                            default  : assert (0); break;
-                            case ADD : left += right; break;
-                            case SUB : left -= right; break;
-                            case MUL : left *= right; break;
-                            case DIV : left /= right; break;
-                        }
-                    }
-                    else {
-                        less_priority.push (Expr (cur_pref_notation, left));
-                        build_expr_stack (node, cur_pref_notation);
-                        left = get_value (cur_pref_notation.top().node_);
-                        cur_pref_notation.pop ();
-                    }
+    }
+
+
+    bool Interpreter::calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<double>& intermediate_st) {
+        while (!expr.empty ()) {
+            auto unit = expr.top ();
+            switch (unit->get_type ()) {
+                default: 
+                    assert (0);
                 break;
 
                 case type::VAL:
-                case type::VAR:
-                    right = get_value (node);
+                    intermediate_st.push (unit->get_val ());
                 break;
-            }
-        }
 
-        return left;
+                case type::VAR: {
+                    auto find_res = var_value_.find (unit->get_var ());
+                    if (find_res == var_value_.end ()) {
+                        printf ("unknown var %s\n", unit->get_var ().c_str ());
+                        abort ();
+                    }
+                    else
+                        intermediate_st.push (find_res->second);
+                } break;
+
+                case type::OP: {
+                    auto cur_op = unit->get_op ();
+                    if (cur_op == op::CALL || cur_op == op::TERN)
+                        return false;
+                    if (cur_op == op::ENDTRUE || cur_op == op::ENDFALSE)
+                        return true;
+                    if (cur_op == op::ENDCOND) {       // tern
+                        if (!intermediate_st.top ())            // if false
+                            for (;unit->get_type () != type::OP || unit->get_op () != op::ENDTRUE; unit = expr.top ())
+                                expr.pop ();
+                        break;                            
+                    }
+                    auto right = intermediate_st.top ();
+                    intermediate_st.pop ();
+                    auto left  = intermediate_st.top ();
+                    intermediate_st.pop ();
+                    switch (unit->get_op ()) {
+                        default: return false; break;
+                        case op::ADD:       intermediate_st.push (left + right);  break;
+                        case op::SUB:       intermediate_st.push (left - right);  break;
+                        case op::MUL:       intermediate_st.push (left * right);  break;
+                        case op::DIV:       intermediate_st.push (left / right);  break;
+                        case op::MORE:      intermediate_st.push (left > right);  break;
+                        case op::LESS:      intermediate_st.push (left < right);  break;
+                        case op::MOREOREQ:  intermediate_st.push (left >= right); break;
+                        case op::LESSOREQ:  intermediate_st.push (left <= right); break;
+                        case op::EQUAL:     intermediate_st.push (left == right); break; 
+                        case op::NOTEQUAL:  intermediate_st.push (left != right); break;  
+                    }
+                } break;
+            }
+            expr.pop ();
+        }
+        return true;
     }
     
 
@@ -311,8 +285,92 @@ namespace ipr {
                     find_res_old->second = find_res->second;
             }
         }
+        auto find_var_result = var_value_.find ("result");
+        if (find_var_result != var_value_.end ()) {
+            auto find_in_old = old_htable.find ("result");
+            if (find_in_old == old_htable.end ())
+                old_htable.insert (std::make_pair ("result", find_var_result->second));
+            else
+                find_in_old->second = find_var_result->second;
+        }
+
 
         var_value_ = old_htable;
+    }
+
+    
+    void Interpreter::create_func_htable (const ast::IAST* args, const ast::IAST* params) {
+        assert (args);
+        assert (params);
+        assert (args->get_type () == type::VAR);
+        assert (params->get_type () == type::VAR);
+
+        auto args_str   = args->get_var ();
+        auto params_str = params->get_var ();
+        auto old_htable = var_value_;
+        var_value_.clear ();
+        
+        unsigned args_beg = 0;
+        unsigned args_end = 0;
+        unsigned param_beg = 0;
+        unsigned param_end = 0;
+        for (;;) {
+            while (params_str.length () > param_end && params_str[param_end] != ',')
+                param_end++;
+            
+            auto args_type = type::NAT;
+            while (args_str.length () > args_end && args_str[args_end] != ',') {
+                if ((isalpha (args_str[args_end]) || args_str[args_end] == '-') && (args_type == type::NAT || args_type == type::VAR))
+                    args_type = VAR;
+                else if ((isdigit (args_str[args_end]) || args_str[args_end] == '.' || args_str[args_end] == '-') 
+                        && (args_type == type::NAT || args_type == type::VAL))
+                    args_type = VAL;  
+                else {
+                    printf ("bad args in function\n");
+                    abort ();
+                } 
+                args_end++;
+            }
+            
+            auto negation = false;
+            if (args_str[args_beg] == '-') {
+                negation = true;
+                args_beg++;
+            }
+            auto arg_len   = args_end -args_beg;
+            auto param_len = param_end - param_beg;
+            if (!param_len && !arg_len)
+                return;
+            else if (param_len && !arg_len) {
+                printf ("too few arguments to function\n");
+                abort ();
+            }
+            else if (!param_len && arg_len) {
+                printf ("too many arguments to function\n");
+                abort ();
+            }
+
+            std::string param (params_str, param_beg, param_len);
+            std::string arg (args_str, args_beg, arg_len);
+            param_beg = ++param_end;
+            args_beg = ++args_end;
+            
+            double number = 0;
+            if (args_type == VAR) {
+                auto find_res = old_htable.find (arg);
+                if (find_res == old_htable.end ()) {
+                    printf ("\nunknown var '%s'\n", arg.c_str ());
+                    abort ();
+                }
+                else
+                    number = find_res->second;
+                number = negation ? -number : number;
+            }
+            else 
+                number = std::stod (arg);
+            var_value_.insert (std::make_pair (param, number));
+        }
+
     }
 
 
@@ -347,30 +405,5 @@ namespace ipr {
                 var_value_.insert (std::make_pair (var, find_res->second));
         }
 
-    }
-
-
-    Interpreter& Interpreter::operator= (const Interpreter& that) {
-        if (this == &that)
-            return *this;
-
-        delete root_;
-        root_ = nullptr;
-        Interpreter tmp (that);
-        *this = std::move (tmp);
-
-        return *this;
-    }
-
-
-    Interpreter& Interpreter::operator= (Interpreter&& that) {
-        delete root_;
-        root_ = that.root_;
-        that.root_ = nullptr;
-
-        prog_nodes_ = std::move (that.prog_nodes_);
-        var_value_  = std::move (that.var_value_);
-
-        return *this;
     }
 }

@@ -1,0 +1,10 @@
+function fact (a) {
+    result = 1;
+    if (a > 1)
+        i = a - 1;
+        res = a * fact (i);
+        result = res;
+    endif;
+}
+
+result = fact (5);

@@ -1,0 +1,19 @@
+function fib (numfib)
+{
+    if (numfib <= 1)
+        result = 1;
+    endif
+    if (numfib == 2)
+        result = 2;
+    endif
+    if (numfib > 2)
+        c = numfib - 2;
+        d = numfib - 1;
+        result = fib (c) + fib (d);
+    endif
+}
+
+
+numfib = 6;
+
+result = fib (numfib);

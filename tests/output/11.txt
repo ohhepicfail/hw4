@@ -1,2 +1,2 @@
-result 6.000000
-tests/input/input3.txt
+result 120
+tests/input/input19.txt

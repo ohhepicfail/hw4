@@ -24,13 +24,19 @@ namespace op {
         NOTEQUAL,
         COLON,
         IF,
+        ENDWHILE,
         ENDIF,
+        ENDFUNC,
+        ENDFALSE,
+        ENDTRUE,
+        ENDCOND,
         CAPTURE,
         COMMA,
         WHILE,
         OBRACE,
         CBRACE,
         FUNCTION,
+        CALL,
         NAP
     };
 

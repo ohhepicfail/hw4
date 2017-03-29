@@ -24,12 +24,18 @@ namespace op {
             case COLON      : return ":";       break;
             case IF         : return "if";      break;
             case ENDIF      : return "endif";   break;
+            case ENDWHILE   : return "endwhile";break;
+            case ENDFUNC    : return "endfunc"; break;
+            case ENDTRUE    : return "endtrue"; break;
+            case ENDFALSE   : return "endfalse";
+            case ENDCOND    : return "endcond"; break;
             case CAPTURE    : return "capture"; break;
             case COMMA      : return ",";       break;
             case WHILE      : return "while";   break;
             case OBRACE     : return "{";       break;
             case CBRACE     : return "}";       break;
             case FUNCTION   : return "function";break;
+            case CALL       : return "call";    break;
             case NAP        : return "NAP";     break;
             default         : return "DEFAULT"; break;
         }
