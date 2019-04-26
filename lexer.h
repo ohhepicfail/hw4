@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cctype>
 #include <string>
+#include <limits>
 
 namespace lexem {
 
@@ -35,8 +36,6 @@ namespace lexem {
         Lexem get_cur_lexem () const;
         void next_lexem ();
     };
-
-
 }
 
 

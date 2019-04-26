@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <cassert>
+#include <sstream>
 #include <list>
 
 namespace parser {
@@ -628,8 +629,11 @@ namespace parser {
 
         if (cur_lexem.get_type () != VAR) {
             printf ("\nexpected primary-expression before ");
-            if (cur_lexem.get_type () == VAL)
-                printf ("'%lg'", cur_lexem.get_val ());
+            if (cur_lexem.get_type () == VAL) {
+                std::stringstream ss;
+                ss << cur_lexem.get_val();
+                printf ("'%s'", ss.str().c_str());
+            }
             else
                 printf ("'%s'", string_eq (cur_lexem.get_op ()));
             printf (" at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());

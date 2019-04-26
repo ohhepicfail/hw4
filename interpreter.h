@@ -10,10 +10,10 @@ namespace ipr {
     class Interpreter {
     private:
         parser::Parser parser_;
-        std::unordered_map <std::string, double> var_value_;
+        std::unordered_map <std::string, lexem::val_t> var_value_;
 
         void   calculate ();
-        bool   calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<double>& intermediate_st);
+        bool   calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<lexem::val_t>& intermediate_st);
 
         void create_func_htable (const ast::IAST* args, const ast::IAST* params); 
         void create_htable (const ast::IAST* var_list);
@@ -27,7 +27,7 @@ namespace ipr {
         Interpreter& operator= (const Interpreter& that) = default;
         Interpreter& operator= (Interpreter&& that)      = default;
 
-        double run ();
+        lexem::val_t run ();
 
     };
 

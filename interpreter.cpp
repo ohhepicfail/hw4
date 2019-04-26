@@ -5,7 +5,7 @@
 
 namespace ipr {
 
-    double Interpreter::run () {
+    lexem::val_t Interpreter::run () {
         calculate ();
 
         auto find_res = var_value_.find ("result");
@@ -27,7 +27,7 @@ namespace ipr {
         };
         struct function_args {
             std::remove_reference<decltype (parser_.get_next_expr ())>::type expr_;
-            std::stack<double> helper_;
+            std::stack<lexem::val_t> helper_;
             decltype (var_value_) htable_;
             decltype (parser_.get_next ()) dst_;
             decltype (parser_.get_next ()) var_;
@@ -47,7 +47,7 @@ namespace ipr {
         std::stack<function_args> func_data;
         bool from_func = false; 
         std::remove_reference<decltype (parser_.get_next_expr ())>::type expr;
-        std::stack<double> intermediate_st; 
+        std::stack<lexem::val_t> intermediate_st;
         auto cur_node = parser_.get_next ();
         decltype (parser_.get_next ()) var = nullptr;
     
@@ -195,7 +195,7 @@ namespace ipr {
     }
 
 
-    bool Interpreter::calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<double>& intermediate_st) {
+    bool Interpreter::calculate_expr (decltype(parser_.get_next_expr ())& expr, std::stack<lexem::val_t>& intermediate_st) {
         while (!expr.empty ()) {
             auto unit = expr.top ();
             switch (unit->get_type ()) {
@@ -355,7 +355,7 @@ namespace ipr {
             param_beg = ++param_end;
             args_beg = ++args_end;
             
-            double number = 0;
+            lexem::val_t number = 0;
             if (args_type == VAR) {
                 auto find_res = old_htable.find (arg);
                 if (find_res == old_htable.end ()) {

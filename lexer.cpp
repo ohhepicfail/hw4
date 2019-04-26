@@ -4,6 +4,7 @@
 #include <sstream>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 
 namespace lexem {
 
@@ -145,30 +146,6 @@ namespace lexem {
     }
 
 
-    void Lexer::set_val_lexem () {
-        double val = .0;
-
-        while (isdigit (text_[cur_pos_])) 
-            val = val * 10 + text_[cur_pos_++] - '0';
-
-        if (text_[cur_pos_] == '.') {
-            cur_pos_++;
-
-            unsigned counter = 10;
-            if (!isdigit (text_[cur_pos_])) {
-                printf ("\nincorrect digit %lg. at line %u, pos %u\n\n", val, line_, pos_);
-                abort ();
-            }
-            while (isdigit (text_[cur_pos_])) {
-                val += static_cast<double> (text_[cur_pos_++] - '0') / counter;
-                counter *= 10;
-            }
-        }
-        lexem_ = Lexem (val, line_, pos_);
-        increase_pos ();
-    }
-
-
     void Lexer::set_var_lexem () {
         auto begin = cur_pos_;
         auto end = begin;
@@ -197,5 +174,28 @@ namespace lexem {
         increase_pos ();
     }
 
+    void Lexer::set_val_lexem () {
+      lexem::val_t val = 0;
 
+        while (isdigit (text_[cur_pos_]))
+            val = val * 10 + text_[cur_pos_++] - '0';
+
+        if (!std::numeric_limits<val_t>::is_integer && text_[cur_pos_] == '.') {
+            cur_pos_++;
+
+            unsigned counter = 10;
+            if (!isdigit (text_[cur_pos_])) {
+                std::stringstream ss;
+                ss << val;
+                printf ("\nincorrect digit %s. at line %u, pos %u\n\n", ss.str().c_str(), line_, pos_);
+                abort ();
+            }
+            while (isdigit (text_[cur_pos_])) {
+                val += static_cast<lexem::val_t> (text_[cur_pos_++] - '0') / counter;
+                counter *= 10;
+            }
+        }
+        lexem_ = Lexem (val, line_, pos_);
+        increase_pos ();
+    }
 }

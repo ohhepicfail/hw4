@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
+#include "lexem.h"
 #include "operator.h"
 #include "type.h"
 
@@ -27,7 +28,7 @@ namespace ast {
         virtual const IAST* get_left  () const = 0;
         virtual const IAST* get_right () const = 0;
 
-        virtual double              get_val  () const { printf ("Can't return val. I'm IAST\n"); abort (); }
+        virtual lexem::val_t        get_val  () const { printf ("Can't return val. I'm IAST\n"); abort (); }
         virtual const std::string&  get_var  () const { printf ("Can't return var. I'm IAST\n"); abort (); }
         virtual op::Operator        get_op   () const { printf ("Can't return  op. I'm IAST\n"); abort (); }
         virtual Type                get_type () const { return NAT; }
@@ -36,9 +37,9 @@ namespace ast {
 
     class Val_AST final: public IAST {
     private:
-        double val_;
+        lexem::val_t val_;
     public:
-        Val_AST (double val) : val_ (val) {}
+        Val_AST (lexem::val_t val) : val_ (val) {}
         ~Val_AST () override {}
         Val_AST (const Val_AST& that) : val_ (that.val_) {}
         IAST* clone () const override { return new Val_AST (*this); }
@@ -48,7 +49,7 @@ namespace ast {
         const IAST* get_left  () const override { return nullptr;}
         const IAST* get_right () const override { return nullptr; }
 
-        double       get_val  () const override { return val_; }
+        lexem::val_t get_val  () const override { return val_; }
         Type         get_type () const override { return VAL; }
     };
 

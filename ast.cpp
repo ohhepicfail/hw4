@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cassert>
+#include <sstream>
 #include "ast.h"
 
 namespace ast {
@@ -37,7 +38,9 @@ namespace ast {
     void Val_AST::dprint (FILE* f) const {
         assert (f);
 
-        fprintf (f, "\t%lu [label = \"val\\n%lf\"]\n", reinterpret_cast<unsigned long> (this), val_);
+        std::stringstream ss;
+        ss << val_;
+        fprintf (f, "\t%lu [label = \"val\\n%s\"]\n", reinterpret_cast<unsigned long> (this), ss.str().c_str());
     }
 
 

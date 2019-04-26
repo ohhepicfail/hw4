@@ -14,11 +14,13 @@ namespace lexem {
     using namespace type;
     using namespace op;
 
+    using val_t = int;
+
     class Lexem {
     public:
         Lexem () : type_ (NAT), var_ (), line_ (0), pos_ (0) {}
         Lexem (Operator op           , unsigned line, unsigned pos) : type_ (OP) , op_ (op)  , line_ (line), pos_ (pos) {}
-        Lexem (double val            , unsigned line, unsigned pos) : type_ (VAL), val_ (val), line_ (line), pos_ (pos) {}
+        Lexem (val_t val             , unsigned line, unsigned pos) : type_ (VAL), val_ (val), line_ (line), pos_ (pos) {}
         Lexem (const char* var       , unsigned line, unsigned pos) : type_ (VAR), var_ (var), line_ (line), pos_ (pos) {} 
         Lexem (const std::string& var, unsigned line, unsigned pos) : type_ (VAR), var_ (var), line_ (line), pos_ (pos) {} 
         ~Lexem () {}
@@ -52,7 +54,7 @@ namespace lexem {
         bool is_function ();
 
         Type get_type () const { return type_; }
-        double get_val () const {
+        val_t get_val () const {
             if (type_ != VAL) {
                 printf ("\nError in Lexem. I can't return val, because type != VAL\n"); 
                 abort ();
@@ -81,7 +83,7 @@ namespace lexem {
         Type type_;
         union {
             Operator op_;
-            double val_;
+            val_t val_;
         };
         std::string var_;       // there is a trouble with std::string in anonimous union :(
 
