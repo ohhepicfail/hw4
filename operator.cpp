@@ -40,4 +40,30 @@ namespace op {
             default         : return "DEFAULT"; break;
         }
     }
+
+    const char* asm_string (Operator op) {
+        switch (op) {
+            case ADD        : return "\tadd t2, t0, t1\n";    break;
+            case SUB        : return "\tsub t2, t0, t1\n";    break;
+            case MUL        : return "\tmul t2, t0, t1\n";    break;
+            case DIV        : return "\tdiv t2, t0, t1\n";    break;
+            case MORE       : return "\tsub t2, t0, t1\n"
+                                     "\tsgtz t2, t2\n";       break;
+            case MOREOREQ   : return "\tsub t2, t0, t1\n"
+                                     "\tseqz t1, t2\n"
+                                     "\tsgtz t0, t2\n"
+                                     "\tor t2, t0, t1\n";     break;
+            case LESS       : return "\tsub t2, t0, t1\n"
+                                     "\tsltz t2, t2\n";       break;
+            case LESSOREQ   : return "\tsub t2, t0, t1\n"
+                                     "\tseqz t1, t2\n"
+                                     "\tsltz t0, t2\n"
+                                     "\tor t2, t0, t1\n";     break;
+            case EQUAL      : return "\tsub t2, t0, t1\n"
+                                     "\tseqz t2, t2\n";       break;
+            case NOTEQUAL   : return "\tsub t2, t0, t1\n"
+                                     "\tsnez t2, t2\n";       break;
+            default         : return "DEFAULT\n";           break; 
+        }
+    }
 }

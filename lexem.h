@@ -32,6 +32,7 @@ namespace lexem {
         unsigned get_line () const { return line_; }
         unsigned get_pos  () const { return pos_ ; }
 
+        bool is_end_file() const;
         bool is_closing_operator ();
         bool is_semicolon ();
         bool is_while ();

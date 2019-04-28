@@ -782,4 +782,11 @@ namespace parser {
 
         return *this;
     }
+
+    const IAST* Parser::get_next_stmt()
+    {
+        if (!lxr_.get_cur_lexem().is_end_file())
+            build();
+        return root_;
+    }
 }

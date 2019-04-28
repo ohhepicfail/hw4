@@ -52,7 +52,10 @@ namespace lexem {
 
         return *this;
     }
-
+    
+    bool Lexem::is_end_file() const {
+        return type_ == type::OP && op_ == op::END;
+    }
     
     bool Lexem::is_closing_operator () {
         if (type_ == type::OP && (op_ == op::END || op_ == op::ENDIF || op_ == op::CBRACE))

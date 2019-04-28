@@ -29,6 +29,16 @@ diff:
 	echo "\nSearch differences";	\
 	cd tests/output; for f in [1-9]*.txt; do echo $$f; diff $$f "../ideals/"$$f; done
 
+compile_translator: main_tran.o ast.o parser.o lexer.o operator.o lexem.o translator.o
+	$(CXX) $(CXXFLAGS) main_tran.o ast.o parser.o lexer.o operator.o lexem.o translator.o -o translator; \
+	echo "${LCYAN}Compilation is completed\n${NORMAL}";
+
+translator.o: translator.cpp
+	$(CXX) $(CXXFLAGS) -c translator.cpp
+
+main_tran.o: main_tran.cpp
+	$(CXX) $(CXXFLAGS) -c main_tran.cpp
+
 compile_interpreter: main.o ast.o parser.o lexer.o operator.o lexem.o interpreter.o
 	$(CXX) $(CXXFLAGS) main.o ast.o parser.o lexer.o operator.o lexem.o interpreter.o -o interpreter
 

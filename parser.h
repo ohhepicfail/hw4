@@ -64,7 +64,7 @@ namespace parser {
         Parser (Parser&& that) : lxr_ (std::move (that.lxr_)), root_ (that.root_) { that.root_ = nullptr;}
         Parser& operator= (const Parser& that);
         Parser& operator= (Parser&& that);
-        
+        const IAST* get_next_stmt(); 
         IAST const* get_next (); 
         std::stack<const ast::IAST*>&& get_next_expr ();
         void load_func (const ast::IAST* func);

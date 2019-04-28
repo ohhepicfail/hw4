@@ -41,6 +41,7 @@ namespace op {
     };
 
     const char* string_eq (Operator op);
+    const char* asm_string (Operator op);
 }
 
 #endif
