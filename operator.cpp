@@ -36,6 +36,10 @@ namespace op {
             case CBRACE     : return "}";       break;
             case FUNCTION   : return "function";break;
             case CALL       : return "call";    break;
+            case SOBRT      : return "[";       break;
+            case SCBRT      : return "]";       break;
+            case DEF        : return "def";     break;
+            case AACCESS    : return "aaccess"; break;
             case NAP        : return "NAP";     break;
             default         : return "DEFAULT"; break;
         }

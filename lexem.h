@@ -53,6 +53,8 @@ namespace lexem {
         bool is_div ();
         bool is_capture ();
         bool is_function ();
+        bool is_open_sbracket ();
+        bool is_close_sbracket ();
 
         Type get_type () const { return type_; }
         val_t get_val () const {

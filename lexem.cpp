@@ -199,4 +199,18 @@ namespace lexem {
             return true;
         return false;
     }
+
+
+    bool Lexem::is_open_sbracket () {
+        if (type_ == type::OP && op_ == op::SOBRT)
+            return true;
+        return false;
+    }
+
+
+    bool Lexem::is_close_sbracket () {
+        if (type_ == type::OP && op_ == op::SCBRT)
+            return true;
+        return false;
+    }
 }

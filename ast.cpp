@@ -88,4 +88,23 @@ namespace ast {
     }
 
 
+/*
+ *
+ *
+ *          Arr_AST
+ *
+ *
+ *
+ */
+
+    void Arr_AST::dprint (FILE* f) const {
+        assert (f);
+
+        fprintf (f, "\t%lu [label = \"%s\\n", reinterpret_cast<unsigned long> (this), var_.c_str ());
+        fprintf (f, "dims: %lu\\n", dims_.size());
+        for (auto dim : dims_)
+          fprintf(f, "%u ", dim);
+        fprintf (f, "\"]\n");
+    }
+
 }

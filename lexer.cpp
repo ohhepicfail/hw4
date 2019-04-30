@@ -114,6 +114,8 @@ namespace lexem {
                 case ','  : op = COMMA;    break;
                 case '{'  : op = OBRACE;   break;
                 case '}'  : op = CBRACE;   break;
+                case '['  : op = SOBRT;    break;
+                case ']'  : op = SCBRT;    break;
                 default   :                break;
             }
 

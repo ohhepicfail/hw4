@@ -32,6 +32,7 @@ namespace parser {
         std::stack<const ast::IAST*> repetitive_;
         std::stack<const ast::IAST*> parts_;
         std::unordered_map<std::string, const ast::IAST*> funcs_;
+        std::unordered_map<std::string, const ast::IAST*> arrays_;
         void fill_expr (const ast::IAST* node);
         void extract_body (const ast::IAST*, op::Operator op_type);
         void add_func (const ast::IAST* func);
@@ -52,6 +53,8 @@ namespace parser {
         IAST* func_call_parse ();
         IAST* val_parse ();
         IAST* var_parse ();
+        IAST* array_access_parse(IAST* left);
+        IAST* array_def_parse(IAST* left);
 
         void get_all_subtree_var (const IAST* subtree, std::string& res_var);
         void get_var_list (std::string& res_var_list);

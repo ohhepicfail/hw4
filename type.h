@@ -7,6 +7,7 @@ namespace type {
         NAT,
         VAR,
         VAL,
+        ARR,
         OP
     };
 

@@ -2,6 +2,7 @@
 #include <cassert>
 #include <sstream>
 #include <list>
+#include <vector>
 
 namespace parser {
 
@@ -181,6 +182,9 @@ namespace parser {
                                 fill_expr (last_part_->get_right ());
                                 return last_part_;
 
+                case DEF:       parts_.push (last_part_->get_left ());
+                                return last_part_;
+
                 case IF:        extract_body (last_part_, op::IF); 
                                 return last_part_;
 
@@ -204,7 +208,7 @@ namespace parser {
             auto tmp = parts_.top ();
             parts_.pop ();
             auto general_type = tmp->get_type ();
-            if (general_type == Type::VAR || general_type == Type::VAL)
+            if (general_type == Type::VAR || general_type == Type::VAL || general_type == Type::ARR)
                 return tmp;
             auto cur_type = tmp->get_op ();
             switch (cur_type)
@@ -212,6 +216,9 @@ namespace parser {
                 case ASSIGN:    parts_.push (tmp->get_left ());
                                 fill_expr (tmp->get_right ());
                                 return tmp;
+
+                case DEF:       parts_.push (last_part_->get_left ());
+                                return last_part_;
 
                 case IF:        extract_body (tmp, op::IF);
                                 return tmp;
@@ -395,26 +402,33 @@ namespace parser {
         auto left = var_parse ();
 
         auto cur_lexem = lxr_.get_cur_lexem ();
-        if (!cur_lexem.is_assign ()) {
-            printf ("\nexpected '=' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
-            abort ();
-        }
-        lxr_.next_lexem ();
+        IAST* op;
+        if (cur_lexem.is_assign()) {
+          lxr_.next_lexem ();
+          auto right = tern_parse ();
+          if (!right) {
+              printf ("\nsyntax error at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+              abort ();
+          }
 
-        auto right = tern_parse ();
-        if (!right) {
-            printf ("\nsyntax error at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+          op = new Op_AST (ASSIGN, left, right);
+        }
+        else if (cur_lexem.is_open_sbracket()) {
+          op = array_def_parse(left);
+        }
+        else {
+            printf ("\nexpected '='  or array definition at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
             abort ();
         }
 
         cur_lexem = lxr_.get_cur_lexem ();
         if (!cur_lexem.is_semicolon ()) {
-            printf ("\nexpected ';' before line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            printf ("\n1expected ';' before line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
             abort ();
         }
         lxr_.next_lexem ();
 
-        return new Op_AST (ASSIGN, left, right);
+        return op;
     }
 
 
@@ -640,7 +654,74 @@ namespace parser {
             abort ();
         }
 
-        return new Var_AST (cur_lexem.get_var ());
+        IAST* var = new Var_AST (cur_lexem.get_var ());
+        cur_lexem = lxr_.get_cur_lexem ();
+        if (arrays_.find(var->get_var()) != arrays_.end()) {
+          var = arrays_[var->get_var()]->clone();
+          while (cur_lexem.is_open_sbracket()) {
+            var = array_access_parse(var);
+            cur_lexem = lxr_.get_cur_lexem ();
+          }
+        }
+
+        return var;
+    }
+
+
+    IAST* Parser::array_access_parse (IAST* left) {
+        auto cur_lexem = lxr_.get_cur_lexem ();
+        if (!cur_lexem.is_open_sbracket()) {
+            printf ("\nexpected '[' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        auto idx = vlvr_parse();
+
+        cur_lexem = lxr_.get_cur_lexem();
+        if (!cur_lexem.is_close_sbracket()) {
+            printf ("\nexpected ']' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort ();
+        }
+        lxr_.next_lexem ();
+
+        return new Op_AST (AACCESS, left, idx);
+    }
+
+
+    IAST* Parser::array_def_parse (IAST* left) {
+      std::vector<unsigned> dims;
+      auto cur_lexem = lxr_.get_cur_lexem ();
+        while (cur_lexem.is_open_sbracket()) {
+          lxr_.next_lexem ();
+
+          cur_lexem = lxr_.get_cur_lexem ();
+          if (cur_lexem.get_type () != VAL) {
+            printf("\nexpected array size at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            abort();
+          }
+          dims.push_back(static_cast<unsigned>(cur_lexem.get_val()));
+          lxr_.next_lexem ();
+
+          cur_lexem = lxr_.get_cur_lexem();
+          if (!cur_lexem.is_close_sbracket()) {
+              printf ("\nexpected ']' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+              abort ();
+          }
+          lxr_.next_lexem ();
+          cur_lexem = lxr_.get_cur_lexem();
+        }
+
+        IAST* arr = new Arr_AST (left->get_var(), std::move(dims));
+        if (arrays_.find(arr->get_var()) != arrays_.end()) {
+          printf("\nredefinition of the %s at line %u, pos %u\n\n",
+              arr->get_var().c_str(), cur_lexem.get_line (), cur_lexem.get_pos ());
+          abort();
+        }
+        arrays_[arr->get_var()] = arr;
+        auto def_op = new Op_AST (DEF, arr, /*new Val_AST(0)*/ nullptr);
+        delete left;
+        return def_op;
     }
 
 

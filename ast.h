@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstdio>
 #include <string>
+#include <vector>
 #include "lexem.h"
 #include "operator.h"
 #include "type.h"
@@ -31,6 +32,7 @@ namespace ast {
         virtual lexem::val_t        get_val  () const { printf ("Can't return val. I'm IAST\n"); abort (); }
         virtual const std::string&  get_var  () const { printf ("Can't return var. I'm IAST\n"); abort (); }
         virtual op::Operator        get_op   () const { printf ("Can't return  op. I'm IAST\n"); abort (); }
+        virtual const std::vector<unsigned>&        get_dims   () const { printf ("Can't return  dims. I'm IAST\n"); abort (); }
         virtual Type                get_type () const { return NAT; }
     };
 
@@ -98,6 +100,31 @@ namespace ast {
         op::Operator get_op   () const override { return op_; }
         Type         get_type () const override { return OP; }
     };
+
+
+    class Arr_AST final: public IAST {
+    private:
+        std::string var_;
+        std::vector<unsigned> dims_;
+    public:
+        explicit Arr_AST (const char* var, std::vector<unsigned>&& dims)        : var_ (var), dims_(dims) {}
+        explicit Arr_AST (const std::string& var, std::vector<unsigned>&& dims) : var_ (var), dims_(dims) {}
+        ~Arr_AST () override {}
+        Arr_AST (const Arr_AST& that) : var_ (that.var_), dims_(that.dims_) {}
+        IAST* clone () const override { return new Arr_AST (*this); }
+
+        void dprint (FILE* f) const override;
+
+        const IAST* get_left  () const override { return nullptr; }
+        const IAST* get_right () const override { return nullptr; }
+
+        const std::string&  get_var  () const override { return var_; }
+        const std::vector<unsigned>&  get_dims () const override { return dims_; }
+        Type                get_type () const override { return ARR; }
+    };
+
+
+
 }
 
 

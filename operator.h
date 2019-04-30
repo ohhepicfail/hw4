@@ -37,6 +37,10 @@ namespace op {
         CBRACE,
         FUNCTION,
         CALL,
+        SOBRT,
+        SCBRT,
+        DEF,
+        AACCESS,
         NAP
     };
 
