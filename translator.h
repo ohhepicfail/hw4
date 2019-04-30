@@ -17,7 +17,7 @@ class Translator final {
         std::stringstream func_defs_,
                           main_code_;
     private:
-        void translate_code(std::list<const IAST*> node,  int& sp_offset, 
+        void translate_code(std::list<const IAST*>& node,  int& sp_offset,
                             Frame& frame, std::stringstream& out);
         void translate_eq(const IAST* node, int& sp_offset, 
                           Frame& frame, std::stringstream& out);

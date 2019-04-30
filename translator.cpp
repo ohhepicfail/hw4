@@ -191,7 +191,7 @@ void Translator::translate_expr(const IAST* node, int& sp_offset,
     sp_offset += 4;
 }
 
-void Translator::translate_code(std::list<const IAST*> code, int& sp_offset, 
+void Translator::translate_code(std::list<const IAST*>& code, int& sp_offset,
                                   Translator::Frame& frame, std::stringstream& out)
 {
     for (auto node : code)
