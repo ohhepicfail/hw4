@@ -5,7 +5,7 @@
 
 int main (int argc, char* argv[]) {
     std::string if_name = "input_test.txt";
-    std::string of_name = "output_test.asm";
+    std::string of_name = "output_test.s";
     if (argc > 1)
         if_name = argv[1];
     if (argc > 2)

@@ -168,13 +168,14 @@ void Translator::translate_expr(const IAST* node, int& sp_offset,
         node = node->get_right();
         auto true_expr_node = node->get_left();
         auto false_expr_node = node->get_right();
+        auto saved_offset = sp_offset;
         //translate true expr
         translate_expr(true_expr_node, sp_offset, frame, out);
         //jump to exit
         out << "\tj L_" << exit_label << "\n";
         //translate false expr
         out << "L_" << false_label << ":\n";
-        translate_expr(false_expr_node, sp_offset, frame, out);
+        translate_expr(false_expr_node, saved_offset, frame, out);
         out << "L_" << exit_label << ":\n";
         return;
     }
@@ -225,17 +226,31 @@ void Translator::translate_if(const IAST* node, int& sp_offset,
     //create frame
     Frame cur_frame;
     auto var = node->get_left();
+    //add vars from capture list
     if (var->get_var()[0] == '*')
         cur_frame = frame;
     else
     {
-        do {
-            auto iter = frame.find(var->get_var());
-            cur_frame.insert(*iter);
-            var = var->get_left();
-        } while (var);
+        auto& var_list = var->get_var();
+        auto from_elem = var_list.begin();
+        auto elem = from_elem + 1;
+        for (; elem != var_list.end(); ++elem)
+        {
+            std::string cur_var;
+            if (*elem == ',')
+            {
+                cur_var.assign(from_elem, elem);
+                auto iter = frame.find(cur_var);
+                cur_frame.insert(*iter);
+                from_elem = elem + 1;
+            }
+        }
+        std::string cur_var;
+        cur_var.assign(from_elem, elem);
+        auto iter = frame.find(cur_var);
+        cur_frame.insert(*iter);
+        cur_frame.insert(*frame.find("result"));
     }
-    cur_frame.insert(*frame.find("result"));
     //collect code to translate
     node = node->get_right();
     std::list<const IAST*> code;
@@ -274,20 +289,31 @@ void Translator::translate_while(const IAST* node, int& sp_offset,
     //create frame
     Frame cur_frame;
     auto var = node->get_left();
+    //add vars from capture list
     if (var->get_var()[0] == '*')
         cur_frame = frame;
     else
     {
-        do {
-            auto iter = frame.find(var->get_var());
-            cur_frame.insert(*iter);
-            var = var->get_left();
-        } while (var);
+        auto& var_list = var->get_var();
+        auto from_elem = var_list.begin();
+        auto elem = from_elem + 1;
+        for (; elem != var_list.end(); ++elem)
+        {
+            std::string cur_var;
+            if (*elem == ',')
+            {
+                cur_var.assign(from_elem, elem);
+                auto iter = frame.find(cur_var);
+                cur_frame.insert(*iter);
+                from_elem = elem + 1;
+            }
+        }
+        std::string cur_var;
+        cur_var.assign(from_elem, elem);
+        auto iter = frame.find(cur_var);
+        cur_frame.insert(*iter);
+        cur_frame.insert(*frame.find("result"));
     }
-    cur_frame.insert(*frame.find("result"));
-    //TODO
-    // add vars from expr to cur_frame
-    //
     //collect code to translate
     node = node->get_right();
     std::list<const IAST*> code;

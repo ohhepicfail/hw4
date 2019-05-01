@@ -594,17 +594,14 @@ namespace parser {
             return new Var_AST ("*");
 
         std::string vars_from_cond1;
-        std::string vars_from_cond2;
         if (cond_vars) {
-            get_all_subtree_var (cond_vars->get_left (),  vars_from_cond1);
-            get_all_subtree_var (cond_vars->get_right (), vars_from_cond2);
+            get_all_subtree_var (cond_vars,  vars_from_cond1);
         }
         lxr_.next_lexem ();
         
         std::string var_list;
         get_var_list (var_list);
-        vars_from_cond1 += vars_from_cond2 + var_list;
-
+        vars_from_cond1 += var_list;
         return new Var_AST (vars_from_cond1);
     }
 
