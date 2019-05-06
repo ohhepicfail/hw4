@@ -1,5 +1,6 @@
 #include "translator.h"
 #include <stack>
+#include <numeric>
 
 void Translator::run()
 {
@@ -41,9 +42,13 @@ void Translator::run()
 }
 
 void Translator::translate_eq(const IAST* node, int& sp_offset, 
-                                  Translator::Frame& frame, std::stringstream& out)
+                                  Frame& frame, std::stringstream& out)
 {
     auto var = node->get_left();
+    //in case of array access
+    while (var->get_type() == OP)
+        var = var->get_left();
+    //check var exist
     bool var_exist = false;
     auto iter = frame.find(var->get_var());
     if (iter == frame.end())
@@ -54,33 +59,76 @@ void Translator::translate_eq(const IAST* node, int& sp_offset,
         out << "\taddi sp, sp, -4\n";
     }
     else
-    {
         var_exist = true;
-    }
     translate_expr(node->get_right(), sp_offset, frame, out);
     if (var_exist)
     {
-        int var_offset = (*iter).second - sp_offset;
-        //save res to var
-        out << "\tlw t0, 0(sp)\n";
-        out << "\tsw  t0, " << var_offset << "(sp)\n";
-        out << "\taddi sp, sp, 4\n";
-        sp_offset += 4;
-        return;
+        auto lhs = node->get_left();
+        //array
+        if (lhs->get_type() == OP)
+        {
+            translate_indices(lhs, sp_offset, frame, out);
+            out << "\tlw t0, 0(sp)\n";
+            out << "\tsw t0, 0(t2)\n";
+        }
+        //var
+        else
+        {
+            int var_offset = (*iter).second - sp_offset;
+            //save res to var
+            out << "\tlw t0, 0(sp)\n";
+            out << "\tsw  t0, " << var_offset << "(sp)\n";
+        }
     }
     else
     {
         //save res to new var
         out << "\tlw t0, 0(sp)\n";
-        out << "\taddi sp, sp, 4\n";
-        out << "\tsw t0, 0(sp)\n";
-        sp_offset += 4;
-        return;
+        out << "\tsw t0, 4(sp)\n";
     }
+    out << "\taddi sp, sp, 4\n";
+    sp_offset += 4;
+}
+
+void Translator::translate_indices(const IAST* node, int& sp_offset,
+                                const Frame& frame, std::stringstream& out)
+{
+    std::vector<const IAST*> indices_expr;
+    //collect indices exprs
+    while (node->get_type() == OP)
+    {
+        indices_expr.push_back(node->get_right());
+        node = node->get_left();
+    }
+    std::vector<unsigned> offsets;
+    auto& dims = node->get_dims();
+    //calculate offset for each dim
+    for (auto it = dims.rbegin(); it != dims.rend(); ++it)
+    {
+        offsets.push_back(std::accumulate(dims.rbegin(), it, 4u, [](auto lhs, auto rhs){ return lhs * rhs; }));
+    }
+    //translate indices exprs
+    for (auto it = indices_expr.rbegin(); it != indices_expr.rend(); ++it)
+        translate_expr(*it, sp_offset, frame, out);
+    //calculate final offset
+    out << "\tli t2, 0\n";
+    for (unsigned i = 0; i < offsets.size(); ++i)
+    {
+        out << "\tlw t0, " << 4 * i << "(sp)\n";
+        out << "\tli t1, " << offsets[i] << "\n";
+        out << "\tmul t0, t0, t1\n";
+        out << "\tadd t2, t2, t0\n";
+    }
+    auto iter = frame.find(node->get_var());
+    auto arr_offset = (*iter).second - sp_offset;
+    out << "\taddi t2, t2, " << arr_offset << "\n";
+    out << "\tadd t2, t2, sp\n";
+    sp_offset += 4 * offsets.size();
+    out << "\taddi sp, sp, " << 4 * offsets.size() << "\n";
 }
 
 void Translator::translate_expr(const IAST* node, int& sp_offset,
-                                const Translator::Frame& frame, std::stringstream& out)
+                                const Frame& frame, std::stringstream& out)
 {
     if (node == nullptr)
         return;
@@ -105,6 +153,17 @@ void Translator::translate_expr(const IAST* node, int& sp_offset,
         out << "\taddi sp, sp, -4\n";
         out << "\tsw t0, 0(sp)\n";
         sp_offset -= 4;
+        return;
+    }
+    //special case for access
+    if (node->get_op() == op::AACCESS)
+    {
+        //calculate total offset in t2
+        translate_indices(node, sp_offset, frame, out);
+        sp_offset -= 4;
+        out << "\tlw t0, 0(t2)\n";
+        out << "\taddi sp, sp, -4\n";
+        out << "\tsw t0, 0(sp)\n";
         return;
     }
     //special case for call
@@ -192,8 +251,21 @@ void Translator::translate_expr(const IAST* node, int& sp_offset,
     sp_offset += 4;
 }
 
+void Translator::translate_def(const IAST* node, int& sp_offset,
+                               Frame& frame, std::stringstream& out)
+{
+    node = node->get_left();
+    int size = std::accumulate(node->get_dims().rbegin(),
+                                node->get_dims().rend(),
+                                4u,
+                                [](auto lhs, auto rhs) { return lhs * rhs; });
+    sp_offset -= size;
+    frame.emplace(node->get_var(), sp_offset);
+    out << "\taddi sp, sp, " << -size << "\n";
+}
+
 void Translator::translate_code(std::list<const IAST*>& code, int& sp_offset,
-                                  Translator::Frame& frame, std::stringstream& out)
+                                Frame& frame, std::stringstream& out)
 {
     for (auto node : code)
     {
@@ -205,33 +277,23 @@ void Translator::translate_code(std::list<const IAST*>& code, int& sp_offset,
                              break;
             case op::WHILE:  translate_while(node, sp_offset, frame, out);
                              break;
+            case op::DEF:    translate_def(node, sp_offset, frame, out);
+                             break;
             default: break;
         }
     }
 }
 
-void Translator::translate_if(const IAST* node, int& sp_offset, 
-                              Translator::Frame& frame, std::stringstream& out)
+void Translator::handle_capture(const IAST* node, const Frame& frame, Frame& cur_frame)
 {
-    //translate expr
-    auto expr = node->get_left();
-    translate_expr(expr, sp_offset, frame, out);
-    //translate if
-    auto false_label = ++label_cnt_;
-    sp_offset += 4;
-    out << "\tlw t0, 0(sp)\n";
-    out << "\taddi sp, sp, 4\n";
-    out << "\tbeqz t0, L_" << false_label << "\n";
-    node = node->get_right();
-    //create frame
-    Frame cur_frame;
-    auto var = node->get_left();
+    auto& var_list = node->get_var();
+    if (var_list.empty())
+        return;
     //add vars from capture list
-    if (var->get_var()[0] == '*')
+    if (var_list[0] == '*')
         cur_frame = frame;
     else
     {
-        auto& var_list = var->get_var();
         auto from_elem = var_list.begin();
         auto elem = from_elem + 1;
         for (; elem != var_list.end(); ++elem)
@@ -251,6 +313,25 @@ void Translator::translate_if(const IAST* node, int& sp_offset,
         cur_frame.insert(*iter);
         cur_frame.insert(*frame.find("result"));
     }
+}
+
+void Translator::translate_if(const IAST* node, int& sp_offset, 
+                              Translator::Frame& frame, std::stringstream& out)
+{
+    //translate expr
+    auto expr = node->get_left();
+    translate_expr(expr, sp_offset, frame, out);
+    //translate if
+    auto false_label = ++label_cnt_;
+    sp_offset += 4;
+    out << "\tlw t0, 0(sp)\n";
+    out << "\taddi sp, sp, 4\n";
+    out << "\tbeqz t0, L_" << false_label << "\n";
+    node = node->get_right();
+    //create frame
+    Frame cur_frame;
+    auto var = node->get_left();
+    handle_capture(var, frame, cur_frame);
     //collect code to translate
     node = node->get_right();
     std::list<const IAST*> code;
@@ -289,31 +370,7 @@ void Translator::translate_while(const IAST* node, int& sp_offset,
     //create frame
     Frame cur_frame;
     auto var = node->get_left();
-    //add vars from capture list
-    if (var->get_var()[0] == '*')
-        cur_frame = frame;
-    else
-    {
-        auto& var_list = var->get_var();
-        auto from_elem = var_list.begin();
-        auto elem = from_elem + 1;
-        for (; elem != var_list.end(); ++elem)
-        {
-            std::string cur_var;
-            if (*elem == ',')
-            {
-                cur_var.assign(from_elem, elem);
-                auto iter = frame.find(cur_var);
-                cur_frame.insert(*iter);
-                from_elem = elem + 1;
-            }
-        }
-        std::string cur_var;
-        cur_var.assign(from_elem, elem);
-        auto iter = frame.find(cur_var);
-        cur_frame.insert(*iter);
-        cur_frame.insert(*frame.find("result"));
-    }
+    handle_capture(var, frame, cur_frame);
     //collect code to translate
     node = node->get_right();
     std::list<const IAST*> code;
