@@ -673,7 +673,7 @@ namespace parser {
         }
         lxr_.next_lexem ();
 
-        auto idx = addsub_parse();
+        auto idx = tern_parse();
 
         cur_lexem = lxr_.get_cur_lexem();
         if (!cur_lexem.is_close_sbracket()) {
