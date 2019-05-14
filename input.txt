@@ -1,8 +1,31 @@
-a = (10 - 8)/2;
-b = (a != 0) ? a-12 : -a/4;
-a = b == b ? 10 : b;
-b = a <= a ? a / 2 : (a + a) * 1;
-a = b >= -b ? b : -b;
-b = a > b ? a : b * 2;
-a = a < b ? a : -a;
-result = a;
+function findmax(arr[10])
+{
+    result = arr[0];
+    counter = 1;
+    while (counter < 10) capture(arr)
+    {
+        if (result < arr[counter]) capture(arr, counter)
+            result = arr[counter];
+        endif
+        counter = counter + 1;
+    }
+}
+
+function fillarr(startval, arr[10])
+{
+    counter = 0;
+    while (counter < 10) capture(arr, startval)
+    {
+        arr[counter] = startval;
+        startval = startval + 1;
+        counter = counter + 1;
+    }
+}
+
+arr[10];
+tmp = 12;
+tmp = fillarr(tmp, arr);
+
+max = findmax(arr);
+
+result = max;

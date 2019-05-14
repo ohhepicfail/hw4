@@ -120,8 +120,22 @@ void Translator::translate_indices(const IAST* node, int& sp_offset,
         out << "\tadd t2, t2, t0\n";
     }
     auto iter = frame.find(node->get_var());
-    auto arr_offset = (*iter).second - sp_offset;
-    out << "\taddi t2, t2, " << arr_offset << "\n";
+    //if arr is accessible by ref
+    if ((*iter).second.is_ref_)
+    {
+        //load its offset from ref
+        auto ref_offset = (*iter).second - sp_offset;
+        out << "\tlw t3, " << ref_offset << "(sp)\n";
+        out << "\tadd t2, t2, t3\n";
+        out << "\taddi t2, t2, " << 4 + ref_offset << "\n";
+    }
+    //if arr is accessible directly
+    else
+    {
+        //get its offset
+        auto arr_offset = (*iter).second - sp_offset;
+        out << "\taddi t2, t2, " << arr_offset << "\n";
+    }
     out << "\tadd t2, t2, sp\n";
     sp_offset += 4 * offsets.size();
     out << "\taddi sp, sp, " << 4 * offsets.size() << "\n";
@@ -177,24 +191,42 @@ void Translator::translate_expr(const IAST* node, int& sp_offset,
         //push arguments backwards
         std::stack<const IAST*> args;
         node = node->get_right();
-        for ( ; node; node = node->get_left())
-            args.push(node);
+        for ( ; node->get_type() == OP && node->get_op() == op::CODE; node = node->get_left())
+            args.push(node->get_right());
+        args.push(node);
         int args_num = args.size();
         while (!args.empty())
         {
             auto arg = args.top();
             args.pop();
-            //load var
-            if (arg->get_type() == VAR)
+            Frame::const_iterator iter;
+            int arg_offset, imm;
+            //load arg to stack
+            switch (arg->get_type())
             {
-                auto iter = frame.find(arg->get_var());
-                out << "\tlw t0, " << (*iter).second - sp_offset << "(sp)\n";
-            }
-            //load imm 
-            else
-            {
-                int imm = node->get_val();
-                out << "\tli t0, " << imm << "\n";
+                case VAR:
+                    iter = frame.find(arg->get_var());
+                    out << "\tlw t0, " << (*iter).second - sp_offset << "(sp)\n";
+                    break;
+                case VAL:
+                    imm = node->get_val();
+                    out << "\tli t0, " << imm << "\n";
+                    break;
+                case ARR:
+                    iter = frame.find(arg->get_var());
+                    arg_offset = (*iter).second - sp_offset;
+                    if ((*iter).second.is_ref_)
+                    {
+                        //load arr offset from ref
+                        out << "\tlw t0, " << arg_offset << "(sp)\n";
+                        out << "\taddi t0, t0, " << 4 + arg_offset << "\n";
+                    }
+                    else
+                        //load arr offset directly
+                        out << "\tli t0, " << (*iter).second - sp_offset << "\n";
+                    break;
+                default: assert(0 && "Unsupported arg type for function call");
+                         break;
             }
             //push arg in stack for calculations
             out << "\taddi sp, sp, -4\n";
@@ -286,33 +318,20 @@ void Translator::translate_code(std::list<const IAST*>& code, int& sp_offset,
 
 void Translator::handle_capture(const IAST* node, const Frame& frame, Frame& cur_frame)
 {
-    auto& var_list = node->get_var();
-    if (var_list.empty())
-        return;
-    //add vars from capture list
-    if (var_list[0] == '*')
+    while (node->get_type() == OP && node->get_op() == op::CODE)
+    {
+        auto iter = frame.find(node->get_right()->get_var());
+        cur_frame.insert(*iter);
+        node = node->get_left();
+    }
+    if (node->get_var()[0] == '*')
         cur_frame = frame;
     else
     {
-        auto from_elem = var_list.begin();
-        auto elem = from_elem + 1;
-        for (; elem != var_list.end(); ++elem)
-        {
-            std::string cur_var;
-            if (*elem == ',')
-            {
-                cur_var.assign(from_elem, elem);
-                auto iter = frame.find(cur_var);
-                cur_frame.insert(*iter);
-                from_elem = elem + 1;
-            }
-        }
-        std::string cur_var;
-        cur_var.assign(from_elem, elem);
-        auto iter = frame.find(cur_var);
+        auto iter = frame.find(node->get_var());
         cur_frame.insert(*iter);
-        cur_frame.insert(*frame.find("result"));
     }
+    cur_frame.insert(*frame.find("result"));
 }
 
 void Translator::translate_if(const IAST* node, int& sp_offset, 
@@ -403,12 +422,27 @@ void Translator::translate_func_def(const IAST* node)
     Frame frame;
     auto arg = node->get_left();
     int arg_cnt = 0;
-    while (arg)
+    while (arg->get_type() == OP && arg->get_op() == op::CODE)
     {
-        frame.emplace(arg->get_var(), arg_cnt * 4);
+        auto cur_var = arg->get_right();
+        if (cur_var->get_type() == OP && cur_var->get_op() == op::DEF)
+        {
+            cur_var = cur_var->get_left();
+            frame.emplace(cur_var->get_var(), var_info(arg_cnt * 4, true));
+        }
+        else
+            frame.emplace(cur_var->get_var(), arg_cnt * 4);
         ++arg_cnt;
         arg = arg->get_left();
     }
+    auto cur_var = arg;
+    if (cur_var->get_type() == OP && cur_var->get_op() == op::DEF)
+    {
+        cur_var = cur_var->get_left();
+        frame.emplace(cur_var->get_var(), var_info(arg_cnt * 4, true));
+    }
+    else
+        frame.emplace(cur_var->get_var(), arg_cnt * 4);
     int sp_offset = 0;
     frame.emplace("result", -4);
     sp_offset -= 4;

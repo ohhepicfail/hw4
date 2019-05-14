@@ -11,7 +11,16 @@
 
 class Translator final {
     private:
-        using Frame = std::unordered_map<std::string, int>;
+        struct var_info {
+            int offset_;
+            bool is_ref_;
+            var_info() = delete;
+            var_info(int offset, bool is_ref = false):
+                offset_(offset), is_ref_(is_ref)
+            {}
+            operator int() const { return offset_; }
+        };
+        using Frame = std::unordered_map<std::string, var_info>;
         unsigned label_cnt_ = 0;
         parser::Parser prsr_;
         std::stringstream func_defs_,

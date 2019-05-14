@@ -33,6 +33,7 @@ namespace parser {
         std::stack<const ast::IAST*> parts_;
         std::unordered_map<std::string, const ast::IAST*> funcs_;
         std::unordered_map<std::string, const ast::IAST*> arrays_;
+        std::stack<decltype(arrays_)> arrays_scope_;
         void fill_expr (const ast::IAST* node);
         void extract_body (const ast::IAST*, op::Operator op_type);
         void add_func (const ast::IAST* func);
@@ -55,10 +56,13 @@ namespace parser {
         IAST* var_parse ();
         IAST* array_access_parse(IAST* left);
         IAST* array_def_parse(IAST* left);
+        IAST* var_list_parse (IAST* args = nullptr);
 
-        void get_all_subtree_var (const IAST* subtree, std::string& res_var);
-        void get_var_list (std::string& res_var_list);
+        IAST* get_all_subtree_var (const IAST* subtree);
+
         void get_func_params (std::string& func_params);
+
+        void fix_arrays_scope(const IAST* subtree);
 
     public:
         explicit Parser (const char* filename, Status status) : lxr_ (filename), status_(status) {}

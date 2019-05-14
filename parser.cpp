@@ -322,6 +322,7 @@ namespace parser {
         if (!cur_lexem.is_function ())
             return while_parse (); 
 
+        arrays_scope_.push(std::move(arrays_));
         lxr_.next_lexem ();
         auto func_name = var_parse ();
         auto params = func_param_parse ();
@@ -342,6 +343,9 @@ namespace parser {
         }
         lxr_.next_lexem ();
 
+        arrays_ = arrays_scope_.top();
+        arrays_scope_.pop();
+
         return new Op_AST (FUNCTION, func_name, new Op_AST (CODE, params, func_code));
     }
 
@@ -354,6 +358,9 @@ namespace parser {
         lxr_.next_lexem ();
         auto cond = cond_parse ();
         auto capt = capture_parse (cond);
+
+        arrays_scope_.push(std::move(arrays_));
+        fix_arrays_scope(capt);
 
         cur_lexem = lxr_.get_cur_lexem ();
         if (!cur_lexem.is_open_brace ()) {
@@ -371,6 +378,9 @@ namespace parser {
         }
         lxr_.next_lexem ();
 
+        arrays_ = arrays_scope_.top();
+        arrays_scope_.pop();
+
         return new Op_AST (WHILE, cond, new Op_AST (CODE, capt, whilecode));
     }
 
@@ -384,6 +394,10 @@ namespace parser {
 
         auto cond   = cond_parse ();
         auto capt   = capture_parse ();
+
+        arrays_scope_.push(std::move(arrays_));
+        fix_arrays_scope(capt);
+
         auto ifcode = code_parse ();
 
         cur_lexem = lxr_.get_cur_lexem ();
@@ -392,6 +406,9 @@ namespace parser {
             abort ();
         }
         lxr_.next_lexem ();
+
+        arrays_ = arrays_scope_.top();
+        arrays_scope_.pop();
 
         return new Op_AST (IF, cond, new Op_AST (CODE, capt, ifcode));
     }
@@ -423,7 +440,7 @@ namespace parser {
 
         cur_lexem = lxr_.get_cur_lexem ();
         if (!cur_lexem.is_semicolon ()) {
-            printf ("\n1expected ';' before line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
+            printf ("\nexpected ';' before line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
             abort ();
         }
         lxr_.next_lexem ();
@@ -593,23 +610,15 @@ namespace parser {
         if (!cur_lexem.is_capture ())
             return new Var_AST ("*");
 
-        std::string vars_from_cond1;
-        if (cond_vars) {
-            get_all_subtree_var (cond_vars,  vars_from_cond1);
-        }
-        lxr_.next_lexem ();
-        
-        std::string var_list;
-        get_var_list (var_list);
-        vars_from_cond1 += var_list;
-        return new Var_AST (vars_from_cond1);
+        IAST* vars = get_all_subtree_var(cond_vars);
+        lxr_.next_lexem();
+        vars = var_list_parse(vars);
+        return vars;
     }
 
 
     IAST* Parser::func_param_parse () {
-        std::string var_list;
-        get_var_list (var_list);
-        return new Var_AST (var_list);
+        return var_list_parse();
     }
 
 
@@ -628,9 +637,7 @@ namespace parser {
         if (!cur_lexem.is_open_bracket ())
             return func_name;       // variable
 
-        std::string params;
-        get_func_params (params);
-        return new Op_AST (CALL, func_name, new Var_AST (params));        
+        return new Op_AST(CALL, func_name, var_list_parse());
     }
 
 
@@ -722,21 +729,20 @@ namespace parser {
     }
 
 
-    void Parser::get_all_subtree_var (const IAST* subtree, std::string& res_var) {
-        assert (subtree);
-
+    IAST* Parser::get_all_subtree_var (const IAST* subtree) {
         std::list<decltype (subtree)> nodes;
 
+        IAST* var = nullptr;
+
         auto cur = subtree;
-        while (cur->get_type () == type::OP) {
+        while (cur && cur->get_type () == type::OP) {
             nodes.push_back (cur->get_right ());
             cur = cur->get_left ();
         }
-        nodes.push_back (cur);
+        if (cur)
+          nodes.push_back (cur);
 
         while (!nodes.empty ()) {
-            std::string var;
-
             cur = nodes.back ();
             nodes.pop_back ();
 
@@ -745,14 +751,16 @@ namespace parser {
                 cur = cur->get_left ();
             }
 
-            if (cur->get_type () == VAR)
-                var = cur->get_var ();
+            if (cur->get_type () == VAR || cur->get_type() == ARR) {
+                if (!var)
+                  var = cur->clone();
+                else
+                  var = new Op_AST(CODE, var, cur->clone());
+            }
             else
                 continue;
-
-
-            res_var += var + ',';
         }
+        return var;
     }
 
     
@@ -797,7 +805,7 @@ namespace parser {
     }
 
 
-    void Parser::get_var_list (std::string& res_var_list) {
+    IAST* Parser::var_list_parse (IAST* args) {
         auto cur_lexem = lxr_.get_cur_lexem ();
         if (!cur_lexem.is_open_bracket ()) {
             printf ("\nexpected '(' at line %u, pos %u\n\n", cur_lexem.get_line (), cur_lexem.get_pos ());
@@ -808,9 +816,16 @@ namespace parser {
         cur_lexem = lxr_.get_cur_lexem ();
 
         while (cur_lexem.get_type () == VAR) {
-            std::string cur_var = cur_lexem.get_var ();
-            res_var_list += cur_var + ',';
-            lxr_.next_lexem ();
+            IAST* arg = var_parse();
+            cur_lexem = lxr_.get_cur_lexem ();
+            if (cur_lexem.is_open_sbracket())
+              arg = array_def_parse(arg);
+
+            if (args)
+              args = new Op_AST(CODE, args, arg);
+            else
+              args = arg;
+
             cur_lexem = lxr_.get_cur_lexem ();
             if (!cur_lexem.is_comma ())
                 break;
@@ -819,14 +834,11 @@ namespace parser {
             cur_lexem = lxr_.get_cur_lexem ();
         }
 
-        if (res_var_list.empty ()) {
-            if (cur_lexem.is_mul ()) {
-                lxr_.next_lexem ();
-                res_var_list = '*';
-            }
+        if (cur_lexem.is_mul ()) {
+            delete args;
+            lxr_.next_lexem ();
+            args = new Var_AST("*");
         }
-        else
-            res_var_list.erase (res_var_list.end () - 1);        //  erase last ','
 
         cur_lexem = lxr_.get_cur_lexem ();
         if (!cur_lexem.is_close_bracket ()) {
@@ -835,6 +847,18 @@ namespace parser {
         }
 
         lxr_.next_lexem ();
+        return args;
+    }
+
+    void Parser::fix_arrays_scope(const IAST* subtree) {
+        while (subtree->get_type() == OP) {
+            const IAST* right = subtree->get_right();
+            if (right->get_type() == ARR)
+              arrays_[right->get_var()] = arrays_scope_.top()[right->get_var()];
+            subtree = subtree->get_left();
+        }
+        if (subtree->get_type() == ARR)
+            arrays_[subtree->get_var()] = arrays_scope_.top()[subtree->get_var()];
     }
 
 
